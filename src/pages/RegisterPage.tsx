@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import background from '../assets/background.png';
+import { authService } from '../services/authService';
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -12,12 +13,38 @@ const RegisterPage: React.FC = () => {
     email: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-  e.preventDefault();
-  console.log('Registration data:', formData);
-  // TODO: API call for registration
-  // Başarılı kayıt sonrası login sayfasına yönlendir
-  navigate('/login');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await authService.register(formData);
+      console.log('Registration successful:', response);
+      
+      // Token'ı kaydet
+      authService.saveAuth(response);
+      
+      // Success message (opsiyonel)
+      alert('Registration successful! Redirecting to login...');
+      
+      // Login sayfasına yönlendir
+      navigate('/login');
+    } catch (err: any) {
+      console.error('Registration failed:', err);
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleTheme = () => {
@@ -156,11 +183,21 @@ const RegisterPage: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full h-10 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors"
+              disabled={isLoading}
+              className={`w-full h-10 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              Complete Registration
+              {isLoading ? 'Registering...' : 'Complete Registration'}
             </button>
           </form>
+
+          {/* Error Message */}
+          {error && (
+            <p className="text-red-500 text-sm font-normal font-['Inter'] text-center mt-2">
+              {error}
+            </p>
+          )}
 
           {/* Info Text */}
           <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter']`}>

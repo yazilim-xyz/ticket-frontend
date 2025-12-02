@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import background from '../assets/background.png';
+import { authService } from '../services/authService';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,10 +19,31 @@ const LoginPage: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login data:', formData);
-    // TODO: API call for login
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await authService.login(formData);
+      console.log('Login successful:', response);
+      
+      // Token'ı kaydet
+      authService.saveAuth(response);
+      
+      // Dashboard'a yönlendir (henüz yapmadık, şimdilik alert)
+      alert('Login successful! Welcome back!');
+      // navigate('/dashboard'); // Dashboard hazır olunca açılacak
+      
+    } catch (err: any) {
+      console.error('Login failed:', err);
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleTheme = () => {
@@ -143,11 +165,21 @@ const LoginPage: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full h-10 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors"
+              disabled={isLoading}
+              className={`w-full h-10 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
+                isLoading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              Sign in
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
+
+          {/* Error Message */}
+          {error && (
+            <p className="text-red-500 text-sm font-normal font-['Inter'] text-center mt-2">
+              {error}
+            </p>
+          )}
 
           {/* Terms Text */}
           <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter'] leading-6 mt-2`}>
