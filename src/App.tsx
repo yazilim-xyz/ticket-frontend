@@ -6,6 +6,8 @@ import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import PasswordResetPage from './pages/PasswordResetPage';
 import Error404Page from './pages/Error404Page';
+import Error403Page from './pages/Error403Page';
+import Error505Page from './pages/Error505Page';
 
 function App() {
   return (
@@ -25,7 +27,12 @@ function App() {
         {/* About Us Page */}
         <Route path="/aboutus" element={<AboutUsPage />} />
         
-        {/* 404 - Sayfa bulunamadı */}
+          {/* Error Pages */}
+        <Route path="/403" element={<Error403Page />} />
+        <Route path="/404" element={<Error404Page />} />
+        <Route path="/505" element={<Error505Page />} />
+
+        {/* Catch All 404 - Sayfa bulunamadı */}
         <Route path="*" element={<Error404Page />} />
       </Routes>
     </Router>
