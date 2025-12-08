@@ -92,3 +92,74 @@ export interface ApiResponse<T> {
   message?: string;
   error?: string;
 }
+
+// Dashboard Stats (Ana kartlar için)
+export interface DashboardStats {
+  activeTickets: number;
+  pendingTickets: number;
+  resolvedTickets: number;
+  overdueTickets: number;
+  activeTicketsChange: string;      // "+12%"
+  pendingTicketsChange: string;     // "+5%"
+  resolvedTicketsChange: string;    // "+23%"
+  overdueTicketsChange: string;     // "-2%"
+}
+
+// Personal Stats (PersonalStats component için)
+export interface PersonalStatsData {
+  ticketsSolved: number;
+  ticketsSolvedPercentage: number;  // 0-100
+  avgResolutionTime: string;        // "3h"
+  avgResolutionTimePercentage: number; // 0-100
+  successRate: number;              // 0-100
+}
+
+// Activity Trend (Grafik için)
+export interface ActivityTrendData {
+  labels: string[];                 // ["0", "1", "2", ...]
+  completedData: number[];          // Green line - Tamamlanan
+  inProgressData: number[];         // Cyan line - Devam eden
+  blockedData: number[];            // Red line - Engellenmiş
+  period?: 'week' | 'month' | 'year';
+}
+
+// Chat User (Dashboard TeamChat için)
+export interface ChatUser {
+  id: string;
+  name: string;
+  avatar?: string;
+  online: boolean;
+  lastSeen?: string;
+}
+
+// Team Chat Message (Dashboard TeamChat için)
+export interface TeamChatMessage {
+  id: string;
+  text: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+  timestamp: string;
+  isOwn: boolean;
+}
+
+// Calendar Task (Upcoming Tasks için)
+export interface CalendarTask {
+  id: string;
+  ticketId: string;
+  title: string;
+  time: string;
+  date: string;
+  color: 'purple' | 'blue' | 'emerald' | 'amber';
+  priority: TicketPriority;
+}
+
+// Dashboard Notification (NotificationsPanel için)
+export interface DashboardNotification {
+  id: string;
+  type: 'success' | 'info' | 'warning' | 'error';
+  title: string;
+  description: string;
+  time: string;
+  read: boolean;
+}

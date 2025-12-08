@@ -1,121 +1,188 @@
-import React, { useState } from 'react';
-
-interface Message {
-  id: number;
-  sender: string;
-  text: string;
-  time: string;
-  isOwn: boolean;
-}
+import React, { useState, useRef, useEffect } from 'react';
+import { TeamChatMessage } from '../../types';
 
 interface TeamChatProps {
   isDarkMode?: boolean;
+  messages?: TeamChatMessage[];
+  onSendMessage?: (recipientId: string, text: string) => Promise<void>;
+  loading?: boolean;
+  sending?: boolean;
 }
 
-const TeamChat: React.FC<TeamChatProps> = ({ isDarkMode = false }) => {
-  const [message, setMessage] = useState('');
-  
-  // TODO: Backend'den gelecek gerçek mesajlar
-  const [messages] = useState<Message[]>([
-    { id: 1, sender: 'Ezgi Yücel', text: 'Hey There!', time: '2:02pm', isOwn: false },
-    { id: 2, sender: 'Ezgi Yücel', text: 'How are you?', time: '2:02pm', isOwn: false },
-    { id: 3, sender: 'You', text: 'Hello!', time: '2:03pm', isOwn: true },
-    { id: 4, sender: 'You', text: 'I am fine and how are you?', time: '2:03pm', isOwn: true },
-    { id: 5, sender: 'Ezgi Yücel', text: 'I am doing well, Can we meet tomorrow?', time: '2:04pm', isOwn: false },
-    { id: 6, sender: 'You', text: 'Yes Sure!', time: '2:04pm', isOwn: true }
-  ]);
+const TeamChat: React.FC<TeamChatProps> = ({ 
+  isDarkMode = false,
+  messages = [],
+  onSendMessage,
+  loading = false,
+  sending = false,
+}) => {
+  const [inputMessage, setInputMessage] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      // TODO: Backend'e mesaj gönder
-      console.log('Sending message:', message);
-      setMessage('');
+  // Auto scroll to bottom when new message arrives
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || !onSendMessage) return;
+
+    try {
+      // Recipient ID - gerçek uygulamada seçili kullanıcıdan gelecek
+      const recipientId = 'user_456'; // Ezgi Yücel
+      await onSendMessage(recipientId, inputMessage);
+      setInputMessage('');
+    } catch (error) {
+      console.error('Failed to send message:', error);
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className={`
+        rounded-lg border h-[450px] flex items-center justify-center
+        ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
+      `}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600 mx-auto mb-2"></div>
+          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading chat...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Get current chat user info (first message sender)
+  const chatUser = messages.find(m => !m.isOwn);
+  const userAvatar = chatUser?.senderAvatar || 'EY';
+  const userName = chatUser?.senderName || 'Ezgi Yücel';
+
   return (
     <div className={`
-      rounded-lg border flex flex-col h-[450px]
+      rounded-lg border h-[550px] flex flex-col
       ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
     `}>
       {/* Header */}
-      <div className={`flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'}`}>
+      <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex items-center justify-between flex-shrink-0`}>
         <div className="flex items-center gap-3">
           <h3 className={`text-lg font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Team Chat
           </h3>
-          <span className="text-xs text-emerald-500 font-medium">3 online</span>
+          <span className={`text-xs font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+            3 online
+          </span>
         </div>
-        <button className="p-1 hover:bg-gray-100 rounded">
-          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+        
+        {/* Three dots menu */}
+        <button className={`${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-700'}`}>
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
           </svg>
         </button>
       </div>
 
       {/* User Info */}
-      <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'}`}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold">
-            EY
-          </div>
-          <div>
-            <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Ezgi Yücel</p>
-            <p className="text-xs text-emerald-500">Online - Last seen, 2.02pm</p>
-          </div>
+      <div className={`px-6 py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex items-center gap-3 flex-shrink-0`}>
+        <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white text-sm font-semibold">
+          {userAvatar}
+        </div>
+        <div className="flex-1">
+          <p className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            {userName}
+          </p>
+          <p className={`text-xs ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+            Online - Last seen, 2:02pm
+          </p>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}>
-            <div className={`
-              max-w-[70%] px-4 py-2 rounded-2xl
-              ${msg.isOwn 
-                ? 'bg-cyan-600 text-white rounded-br-none' 
-                : isDarkMode 
-                  ? 'bg-gray-700 text-white rounded-bl-none'
-                  : 'bg-gray-100 text-gray-900 rounded-bl-none'
-              }
-            `}>
-              <p className="text-sm">{msg.text}</p>
-            </div>
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        {messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              No messages yet
+            </p>
           </div>
-        ))}
+        ) : (
+          <>
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[70%] px-4 py-2 rounded-2xl ${
+                    message.isOwn
+                      ? 'bg-cyan-600 text-white rounded-br-none'
+                      : isDarkMode
+                      ? 'bg-gray-700 text-gray-100 rounded-bl-none'
+                      : 'bg-gray-100 text-gray-900 rounded-bl-none'
+                  }`}
+                >
+                  <p className="text-sm">{message.text}</p>
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
 
-      {/* Input */}
-      <div className={`p-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'}`}>
-        <div className="flex items-center gap-2">
-          <button className="p-2 hover:bg-gray-100 rounded">
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+      {/* Input Area */}
+      <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex items-center gap-3 flex-shrink-0`}>
+        {/* Attachment Button */}
+        <button 
+          className={`p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
+          disabled={sending}
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+          </svg>
+        </button>
+
+        {/* Input */}
+        <input
+          type="text"
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="Type your message here..."
+          disabled={sending}
+          className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+            isDarkMode
+              ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
+              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+          } ${sending ? 'opacity-50 cursor-not-allowed' : ''}`}
+        />
+
+        {/* Send Button */}
+        <button
+          onClick={handleSendMessage}
+          disabled={!inputMessage.trim() || sending}
+          className={`p-2 rounded-lg transition-colors ${
+            inputMessage.trim() && !sending
+              ? 'bg-cyan-600 text-white hover:bg-cyan-700'
+              : isDarkMode
+              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {sending ? (
+            <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
             </svg>
-          </button>
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Type your message here..."
-            className={`
-              flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-cyan-500
-              ${isDarkMode 
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-              }
-            `}
-          />
-          <button 
-            onClick={handleSendMessage}
-            className="p-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-          </button>
-        </div>
+          )}
+        </button>
       </div>
     </div>
   );

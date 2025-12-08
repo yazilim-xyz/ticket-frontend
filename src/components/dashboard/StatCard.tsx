@@ -49,7 +49,7 @@ const StatCard: React.FC<StatCardProps> = ({
         <div className={`text-xs font-medium font-['Roboto'] leading-4 tracking-wide ${
           changeType === 'positive' ? 'text-emerald-500' : 'text-red-700'
         }`}>
-          {change}
+          {change} from last week
         </div>
       </div>
 

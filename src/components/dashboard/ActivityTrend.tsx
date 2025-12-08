@@ -1,21 +1,37 @@
 import React from 'react';
+import { ActivityTrendData } from '../../types';
 
 interface ActivityTrendProps {
   isDarkMode?: boolean;
-  data?: {
-    greenData: number[];
-    redData: number[];
-    cyanData: number[];
-    labels: string[];
-  };
+  data?: ActivityTrendData | null;
   loading?: boolean;
 }
 
-const ActivityTrend: React.FC<ActivityTrendProps> = ({ isDarkMode = false, data, loading = false }) => {
-  // Mock data (backend hazır olana kadar)
-  const greenData = data?.greenData || [30, 45, 35, 55, 40, 60, 50, 65, 55, 70];
-  const redData = data?.redData || [20, 35, 25, 45, 30, 50, 40, 55, 45, 60];
-  const cyanData = data?.cyanData || [35, 50, 40, 60, 45, 65, 55, 70, 60, 75];
+const ActivityTrend: React.FC<ActivityTrendProps> = ({ 
+  isDarkMode = false, 
+  data, 
+  loading = false 
+}) => {
+  // Loading state
+  if (loading) {
+    return (
+      <div className={`
+        rounded-lg border h-[340px] flex items-center justify-center
+        ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
+      `}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600 mx-auto mb-2"></div>
+          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Use data from props or fallback to mock data
+  const completedData = data?.completedData ?? [30, 45, 35, 55, 40, 60, 50, 65, 55, 70];
+  const inProgressData = data?.inProgressData ?? [35, 50, 40, 60, 45, 65, 55, 70, 60, 75];
+  const blockedData = data?.blockedData ?? [20, 35, 25, 45, 30, 50, 40, 55, 45, 60];
+  const labels = data?.labels ?? ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
   // SVG boyutları
   const width = 540;
@@ -26,7 +42,7 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({ isDarkMode = false, data,
   const chartHeight = height - paddingTop - paddingBottom;
 
   // Ölçekler
-  const xScale = chartWidth / 9;
+  const xScale = chartWidth / (labels.length - 1);
   const yScale = chartHeight / 100;
 
   // Çizgi oluştur
@@ -45,23 +61,9 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({ isDarkMode = false, data,
     ).join(' ');
   };
 
-  const greenPoints = createLine(greenData);
-  const redPoints = createLine(redData);
-  const cyanPoints = createLine(cyanData);
-
-  if (loading) {
-    return (
-      <div className={`
-        rounded-lg border h-[340px] flex items-center justify-center
-        ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
-      `}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600 mx-auto mb-2"></div>
-          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const completedPoints = createLine(completedData);
+  const inProgressPoints = createLine(inProgressData);
+  const blockedPoints = createLine(blockedData);
 
   return (
     <div className={`
@@ -127,7 +129,7 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({ isDarkMode = false, data,
 
           {/* Dikey grid çizgileri */}
           <g>
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => {
+            {labels.map((_, index) => {
               const x = index * xScale;
               return (
                 <line
@@ -147,14 +149,14 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({ isDarkMode = false, data,
 
           {/* Cyan çizgi (In Progress) */}
           <path
-            d={createPath(cyanPoints)}
+            d={createPath(inProgressPoints)}
             fill="none"
             stroke="#06b6d4"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          {cyanPoints.map((point, i) => (
+          {inProgressPoints.map((point, i) => (
             <circle
               key={`cyan-${i}`}
               cx={point.x}
@@ -166,14 +168,14 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({ isDarkMode = false, data,
 
           {/* Green çizgi (Completed) */}
           <path
-            d={createPath(greenPoints)}
+            d={createPath(completedPoints)}
             fill="none"
             stroke="#10b981"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          {greenPoints.map((point, i) => (
+          {completedPoints.map((point, i) => (
             <circle
               key={`green-${i}`}
               cx={point.x}
@@ -185,14 +187,14 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({ isDarkMode = false, data,
 
           {/* Red çizgi (Blocked) */}
           <path
-            d={createPath(redPoints)}
+            d={createPath(blockedPoints)}
             fill="none"
             stroke="#ef4444"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          {redPoints.map((point, i) => (
+          {blockedPoints.map((point, i) => (
             <circle
               key={`red-${i}`}
               cx={point.x}
@@ -203,20 +205,18 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({ isDarkMode = false, data,
           ))}
         </svg>
 
-        {/* X ekseni etiketleri - Tam hizalı */}
+        {/* X ekseni etiketleri */}
         <div className="flex justify-between mt-3">
-          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+          {labels.map((label, i) => (
             <div
               key={i}
               className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
               style={{ 
                 width: `${xScale}px`,
                 textAlign: 'center',
-                marginLeft: i === 0 ? `0px` : '0',
-                marginRight: i === 9 ? `0px` : '0'
               }}
             >
-              {i}
+              {label}
             </div>
           ))}
         </div>

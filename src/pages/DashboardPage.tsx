@@ -7,19 +7,63 @@ import TeamChat from '../components/dashboard/TeamChat';
 import CalendarWidget from '../components/dashboard/CalendarWidget';
 import NotificationsPanel from '../components/dashboard/NotificationsPanel';
 
+// Custom hooks'ları import et
+import {
+  useDashboardStats,
+  usePersonalStats,
+  useActivityTrend,
+  useChatMessages,
+  useUpcomingTasks,
+  useNotifications,
+} from '../hooks/useDashboard';
+
 const DashboardPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const stats = {
-    activeTickets: { value: 9, change: '+12% from last week', changeType: 'positive' as const },
-    pendingTickets: { value: 12, change: '+5% from last week', changeType: 'positive' as const },
-    resolvedTickets: { value: 153, change: '+23% from last week', changeType: 'positive' as const },
-    overdueTickets: { value: 4, change: '-2% from last week', changeType: 'negative' as const },
-  };
+  // Custom hooks ile canlı veri çek
+  const { stats, loading: statsLoading, error: statsError } = useDashboardStats();
+  const { personalStats, loading: personalLoading } = usePersonalStats();
+  const { activityData, loading: activityLoading } = useActivityTrend('week');
+  const { messages, sendMessage, loading: chatLoading, sending } = useChatMessages();
+  const { tasks, loading: tasksLoading } = useUpcomingTasks();
+  const { notifications, markAsRead, loading: notificationsLoading } = useNotifications();
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
   };
+
+  // Chat mesajı gönderme fonksiyonu
+  const handleSendMessage = async (recipientId: string, text: string) => {
+    try {
+      await sendMessage(recipientId, text);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  };
+
+  // Ana loading state (sadece kritik veri için)
+  if (statsLoading && !stats) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (statsError) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center text-red-600">
+          <p className="text-xl font-semibold mb-2">Error loading dashboard</p>
+          <p>{statsError}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
@@ -111,13 +155,13 @@ const DashboardPage: React.FC = () => {
 
         {/* Stats Cards */}
         <div className="px-8 py-6">
-          {/* Top Stats Row */}
+          {/* Top Stats Row : API'den gelen veri kullanılıyor */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <StatCard
               title="Active Tickets"
-              value={stats.activeTickets.value}
-              change={stats.activeTickets.change}
-              changeType={stats.activeTickets.changeType}
+              value={stats?.activeTickets ?? 0}
+              change={stats?.activeTicketsChange ?? '+0%'}
+              changeType={stats?.activeTicketsChange?.startsWith('+') ? 'positive' : 'negative'}
               iconColor="text-white"
               iconBgColor="bg-emerald-500"
               isDarkMode={isDarkMode}
@@ -130,9 +174,9 @@ const DashboardPage: React.FC = () => {
 
             <StatCard
               title="Pending Tickets"
-              value={stats.pendingTickets.value}
-              change={stats.pendingTickets.change}
-              changeType={stats.pendingTickets.changeType}
+              value={stats?.pendingTickets ?? 0}
+              change={stats?.pendingTicketsChange ?? '+0%'}
+              changeType={stats?.pendingTicketsChange?.startsWith('+') ? 'positive' : 'negative'}
               iconColor="text-white"
               iconBgColor="bg-amber-500"
               isDarkMode={isDarkMode}
@@ -145,9 +189,9 @@ const DashboardPage: React.FC = () => {
 
             <StatCard
               title="Resolved Tickets"
-              value={stats.resolvedTickets.value}
-              change={stats.resolvedTickets.change}
-              changeType={stats.resolvedTickets.changeType}
+              value={stats?.resolvedTickets ?? 0}
+              change={stats?.resolvedTicketsChange ?? '+0%'}
+              changeType={stats?.resolvedTicketsChange?.startsWith('+') ? 'positive' : 'negative'}
               iconColor="text-white"
               iconBgColor="bg-sky-500"
               isDarkMode={isDarkMode}
@@ -160,9 +204,9 @@ const DashboardPage: React.FC = () => {
 
             <StatCard
               title="Overdue Tickets"
-              value={stats.overdueTickets.value}
-              change={stats.overdueTickets.change}
-              changeType={stats.overdueTickets.changeType}
+              value={stats?.overdueTickets ?? 0}
+              change={stats?.overdueTicketsChange ?? '-0%'}
+              changeType={stats?.overdueTicketsChange?.startsWith('-') ? 'negative' : 'positive'}
               iconColor="text-white"
               iconBgColor="bg-red-700"
               isDarkMode={isDarkMode}
@@ -179,16 +223,39 @@ const DashboardPage: React.FC = () => {
             {/* Left Column - 3 units (60%) */}
             <div className="xl:col-span-3 flex flex-col gap-6">
               <div className="flex-shrink-0">
-                <TeamChat isDarkMode={isDarkMode} />
+                <TeamChat 
+                  isDarkMode={isDarkMode}
+                  messages={messages}
+                  onSendMessage={handleSendMessage}
+                  loading={chatLoading}
+                  sending={sending}
+                />
               </div>
-              <PersonalStats isDarkMode={isDarkMode} />
-              <ActivityTrend isDarkMode={isDarkMode} />
+              <PersonalStats 
+                isDarkMode={isDarkMode}
+                stats={personalStats}
+                loading={personalLoading}
+              />
+              <ActivityTrend 
+                isDarkMode={isDarkMode}
+                data={activityData}
+                loading={activityLoading}
+              />
             </div>
 
             {/* Right Column - 2 units (40%) */}
             <div className="xl:col-span-2 flex flex-col gap-6">
-              <CalendarWidget isDarkMode={isDarkMode} />
-              <NotificationsPanel isDarkMode={isDarkMode} />
+              <CalendarWidget 
+                isDarkMode={isDarkMode}
+                tasks={tasks}
+                loading={tasksLoading}
+              />
+              <NotificationsPanel 
+                isDarkMode={isDarkMode}
+                notifications={notifications}
+                onMarkAsRead={markAsRead}
+                loading={notificationsLoading}
+              />
             </div>
           </div>
         </div>
