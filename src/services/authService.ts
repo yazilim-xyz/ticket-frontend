@@ -17,12 +17,18 @@ export const authService = {
       throw new Error('This email is already registered');
     }
 
+    // Password validation
+    if (!data.password || data.password.length < 6) {
+      throw new Error('Password must be at least 6 characters');
+    }
+
     // Yeni kullanıcı oluştur
     const newUser = {
       id: `user_${Date.now()}`,
       fullName: data.fullName,
       email: data.email,
       department: data.department,
+      password: data.password, // Password kaydedildi (gerçek uygulamada hash'lenecek)
       role: 'user' as const,
       createdAt: new Date().toISOString(),
     };
@@ -32,11 +38,18 @@ export const authService = {
     // Mock token oluştur
     const token = `mock_token_${newUser.id}`;
 
-    console.log('User registered:', newUser);
+    console.log('User registered:', { ...newUser, password: '***hidden***' });
     console.log('Total users:', mockUsers.length);
 
     return {
-      user: newUser,
+      user: {
+        id: newUser.id,
+        fullName: newUser.fullName,
+        email: newUser.email,
+        department: newUser.department,
+        role: newUser.role,
+        createdAt: newUser.createdAt,
+      },
       token,
     };
   },
@@ -52,13 +65,25 @@ export const authService = {
       throw new Error('Invalid email or password');
     }
 
+    // Password kontrolü
+    if (user.password !== credentials.password) {
+      throw new Error('Invalid email or password');
+    }
+
     // Mock token oluştur
     const token = `mock_token_${user.id}`;
 
-    console.log('User logged in:', user);
+    console.log('User logged in:', { ...user, password: '***hidden***' });
 
     return {
-      user,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        department: user.department,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
       token,
     };
   },

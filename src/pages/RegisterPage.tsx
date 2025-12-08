@@ -11,6 +11,7 @@ const RegisterPage: React.FC = () => {
     fullName: '',
     department: '',
     email: '',
+    password: '', // Password eklendi
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -22,10 +23,18 @@ const RegisterPage: React.FC = () => {
       [e.target.name]: e.target.value,
     });
   };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+
+    // Password validation
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await authService.register(formData);
@@ -103,7 +112,7 @@ const RegisterPage: React.FC = () => {
           
           {/* Moon Icon with Tick */}
           <div className="relative">
-            <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`} fill="currentColor" viewBox="0 0 20 20">
+            <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-blue-400' : 'text-gray-800'}`} fill="currentColor" viewBox="0 0 20 20">
               <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
             </svg>
             {/* Tick for Dark Mode */}
@@ -178,6 +187,18 @@ const RegisterPage: React.FC = () => {
               placeholder="email@domain.com"
               className={`w-full h-10 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
               required
+            />
+
+            {/* Password Input - YENİ EKLENEN */}
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Password (min. 6 characters)"
+              className={`w-full h-10 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+              required
+              minLength={6}
             />
 
             {/* Submit Button */}

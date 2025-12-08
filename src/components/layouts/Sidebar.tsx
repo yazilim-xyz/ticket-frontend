@@ -1,0 +1,249 @@
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import logo from '../../assets/logo.png';
+
+interface SidebarProps {
+  userRole?: 'admin' | 'user';
+}
+
+interface MenuItem {
+  id: string;
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+  adminOnly?: boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const menuItems: MenuItem[] = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      path: '/dashboard',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+        </svg>
+      )
+    },
+    {
+      id: 'active-tickets',
+      label: 'Active Tickets',
+      path: '/active-tickets',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      )
+    },
+    {
+      id: 'all-tickets',
+      label: 'All Tickets',
+      path: '/all-tickets',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    {
+      id: 'performance',
+      label: 'Performance',
+      path: '/performance',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
+      adminOnly: true
+    },
+    {
+      id: 'chat',
+      label: 'Chat',
+      path: '/chat',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      )
+    },
+    {
+      id: 'excel-reports',
+      label: 'Excel Reports',
+      path: '/excel-reports',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    {
+      id: 'ai-bot',
+      label: 'AI Bot',
+      path: '/ai-bot',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      )
+    },
+    {
+      id: 'calendar',
+      label: 'Calendar',
+      path: '/calendar',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    },
+    {
+      id: 'admin-panel',
+      label: 'Admin Panel',
+      path: '/admin-panel',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      adminOnly: true
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      path: '/settings',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+      )
+    }
+  ];
+
+  const filteredMenuItems = menuItems.filter(item => 
+    !item.adminOnly || userRole === 'admin'
+  );
+
+  const handleMenuClick = (path: string) => {
+    navigate(path);
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  return (
+    <div 
+      className={`
+        h-screen bg-zinc-100 border-r border-zinc-300 flex flex-col transition-all duration-300 relative
+        ${isCollapsed ? 'w-20' : 'w-64'}
+      `}
+    >
+      {/* Hamburger Menu - Sağ Üst Köşe */}
+      <button 
+        onClick={toggleSidebar}
+        className={`
+          absolute w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded transition-colors z-10
+          ${isCollapsed ? 'top-2 right-6' : 'top-4 right-4'}
+        `}
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        <svg 
+          className="w-5 h-5 text-cyan-800" 
+          viewBox="0 0 20 20" 
+          fill="currentColor"
+        >
+          <path 
+            fillRule="evenodd" 
+            d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" 
+            clipRule="evenodd" 
+          />
+        </svg>
+      </button>
+
+      {/* Logo Section */}
+      <div className={`flex flex-col items-center px-4 ${isCollapsed ? 'pt-12 pb-4' : 'pt-6 pb-8'}`}>
+        {!isCollapsed && (
+          <>
+            <img 
+              src={logo} 
+              alt="Enterprise Ticket System Logo" 
+              className="w-28 h-28 mb-4"
+            />
+            <h2 className="text-cyan-800 text-2xl font-normal font-['Inter'] leading-9 text-center">
+              Enterprise<br/>Ticket System
+            </h2>
+          </>
+        )}
+        {isCollapsed && (
+          <img 
+            src={logo} 
+            alt="Logo" 
+            className="w-12 h-12"
+          />
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="w-full h-px bg-zinc-300 mb-6" />
+
+      {/* Menu Items */}
+      <nav className="flex-1 px-5 overflow-y-auto">
+        <div className="flex flex-col gap-1">
+          {filteredMenuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleMenuClick(item.path)}
+              className={`
+                w-full h-10 px-4 rounded-lg flex items-center gap-4 transition-colors
+                ${isActive(item.path) 
+                  ? 'bg-cyan-800 text-white' 
+                  : 'bg-white text-black hover:bg-gray-50'
+                }
+                ${isCollapsed ? 'justify-center' : ''}
+              `}
+              title={isCollapsed ? item.label : undefined}
+            >
+              <span className={isActive(item.path) ? 'text-white' : 'text-cyan-800'}>
+                {item.icon}
+              </span>
+              
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1 text-left text-base font-medium font-['Inter'] leading-6">
+                    {item.label}
+                  </span>
+                  <svg 
+                    className={`w-3 h-6 ${isActive(item.path) ? 'text-white' : 'text-cyan-800'}`} 
+                    viewBox="0 0 12 24" 
+                    fill="currentColor"
+                  >
+                    <path 
+                      d="M3.09 5.64L8.45 12L3.09 18.36" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      fill="none"
+                    />
+                  </svg>
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+};
+
+export default Sidebar;
