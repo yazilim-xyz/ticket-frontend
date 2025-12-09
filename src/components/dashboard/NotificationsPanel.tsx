@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { DashboardNotification } from '../../types';
 
 interface NotificationsPanelProps {
@@ -14,6 +14,15 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   onMarkAsRead,
   loading = false,
 }) => {
+  const [showAll, setShowAll] = useState(false);
+
+  // Calculate unread count
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Show limited notifications or all
+  const displayedNotifications = showAll ? notifications : notifications.slice(0, 4);
+  const hasMore = notifications.length > 4;
+
   // Notification icon based on type
   const getIcon = (type: string) => {
     switch (type) {
@@ -77,7 +86,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   if (loading) {
     return (
       <div className={`
-        rounded-lg border h-[400px] flex items-center justify-center
+        rounded-lg border h-[465px] flex items-center justify-center
         ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
       `}>
         <div className="text-center">
@@ -90,7 +99,7 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
 
   return (
     <div className={`
-      rounded-lg border
+      rounded-lg border 
       ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
     `}>
       {/* Header */}
@@ -98,66 +107,129 @@ const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         <h3 className={`text-lg font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           Notifications
         </h3>
-        <button className={`text-sm font-medium ${isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}>
-          More
-        </button>
+        {unreadCount > 0 && (
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Unread:
+            </span>
+            <span className="bg-cyan-600 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center">
+              {unreadCount}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Notifications List */}
-      <div className="p-6 space-y-3">
+      {/* Notifications List Container*/}
+      <div className="h-[465px] flex flex-col">
         {notifications.length === 0 ? (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center h-full px-6">
             <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
               No notifications
             </p>
           </div>
         ) : (
-          notifications.map((notification) => {
-            const colors = getColorClasses(notification.type);
-            
-            return (
-              <div
-                key={notification.id}
-                className={`p-4 rounded-lg ${colors.cardBg} flex items-start gap-3 group cursor-pointer hover:shadow-md transition-shadow`}
-                onClick={() => onMarkAsRead?.(notification.id)}
-              >
-                {/* Icon */}
-                <div className={`w-8 h-8 rounded-full ${colors.iconBg} ${colors.iconText} flex items-center justify-center flex-shrink-0`}>
-                  {getIcon(notification.type)}
-                </div>
+          <>
+            {/* Scrollable Content Area */}
+            <div className={`flex-1 px-6 pt-3 space-y-2 ${showAll ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+              {displayedNotifications.map((notification) => {
+                const colors = getColorClasses(notification.type);
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {notification.title}
-                  </p>
-                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {notification.description}
-                  </p>
-                  <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                    {notification.time}
-                  </p>
-                </div>
-
-                {/* Close button (shows on hover) */}
-                {onMarkAsRead && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMarkAsRead(notification.id);
-                    }}
-                    className={`opacity-0 group-hover:opacity-100 transition-opacity ${
-                      isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
+                return (
+                  <div
+                    key={notification.id}
+                    className={`p-3 rounded-lg ${colors.cardBg} flex items-start gap-3 group cursor-pointer hover:shadow-md transition-shadow ${
+                      notification.read ? 'opacity-60' : ''
                     }`}
+                    onClick={() => onMarkAsRead?.(notification.id)}
                   >
+                    {/* Icon */}
+                    <div className={`w-8 h-8 rounded-full ${colors.iconBg} ${colors.iconText} flex items-center justify-center flex-shrink-0`}>
+                      {getIcon(notification.type)}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className={`text-sm font-semibold mb-0.5 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {notification.title}
+                        </p>
+                        {/* Unread indicator */}
+                        {!notification.read && (
+                          <div className="w-2 h-2 bg-cyan-600 rounded-full flex-shrink-0 mt-1"></div>
+                        )}
+                      </div>
+                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {notification.description}
+                      </p>
+                      <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                        {notification.time}
+                      </p>
+                    </div>
+                  
+                    {/* Close button (shows on hover) */}
+                    {onMarkAsRead && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkAsRead(notification.id);
+                        }}
+                        className={`opacity-0 group-hover:opacity-100 transition-opacity ${
+                          isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>  
+            
+            {/* Buttons Area */}
+            <div className="px-6 pb-6 pt-3 flex-shrink-0">
+              {/* More Button */}
+              {hasMore && !showAll && (
+                <button
+                  onClick={() => setShowAll(true)}
+                  className={`w-full py-3 rounded-lg border transition-colors ${
+                    isDarkMode
+                      ? 'border-gray-700 bg-gray-700 hover:bg-gray-600 text-cyan-400'
+                      : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-cyan-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-sm font-medium">
+                      Show More ({notifications.length - 4} more)
+                    </span>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
-                  </button>
-                )}
-              </div>
-            );
-          })
+                  </div>
+                </button>
+              )}
+
+              {/* Show Less Button */}
+              {showAll && (
+                <button
+                  onClick={() => setShowAll(false)}
+                  className={`w-full py-3 rounded-lg border transition-colors ${
+                    isDarkMode
+                      ? 'border-gray-700 bg-gray-700 hover:bg-gray-600 text-cyan-400'
+                      : 'border-gray-200 bg-gray-50 hover:bg-gray-100 text-cyan-600'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-sm font-medium">Show Less</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </div>
+                </button>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import background from '../assets/background.png';
 import { authService } from '../services/authService';
 
 const LoginPage: React.FC = () => {
-  const navigate = useNavigate();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [formData, setFormData] = useState({
     email: '',

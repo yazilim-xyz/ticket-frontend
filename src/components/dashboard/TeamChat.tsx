@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TeamChatMessage } from '../../types';
+import { useNavigate } from 'react-router-dom';
 
 interface TeamChatProps {
   isDarkMode?: boolean;
@@ -18,6 +19,7 @@ const TeamChat: React.FC<TeamChatProps> = ({
 }) => {
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   // Auto scroll to bottom when new message arrives
   useEffect(() => {
@@ -42,6 +44,11 @@ const TeamChat: React.FC<TeamChatProps> = ({
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+   // Navigate to Chat Page
+  const handleNavigateToChat = () => {
+    navigate('/chat');
   };
 
   // Loading state
@@ -80,8 +87,11 @@ const TeamChat: React.FC<TeamChatProps> = ({
           </span>
         </div>
         
-        {/* Three dots menu */}
-        <button className={`${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-700'}`}>
+         {/* Three dots menu - Navigate to Chat Page */}
+        <button 
+          onClick={handleNavigateToChat}
+          className={`${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-700'} transition-colors`}
+        >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
           </svg>
@@ -121,7 +131,7 @@ const TeamChat: React.FC<TeamChatProps> = ({
                 <div
                   className={`max-w-[70%] px-4 py-2 rounded-2xl ${
                     message.isOwn
-                      ? 'bg-cyan-600 text-white rounded-br-none'
+                      ? 'bg-cyan-500 text-white rounded-br-none'
                       : isDarkMode
                       ? 'bg-gray-700 text-gray-100 rounded-bl-none'
                       : 'bg-gray-100 text-gray-900 rounded-bl-none'
@@ -178,8 +188,8 @@ const TeamChat: React.FC<TeamChatProps> = ({
           {sending ? (
             <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
           ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           )}
         </button>

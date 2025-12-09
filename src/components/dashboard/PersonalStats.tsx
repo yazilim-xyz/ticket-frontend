@@ -1,5 +1,6 @@
 import React from 'react';
 import { PersonalStatsData } from '../../types';
+import { useNavigate } from 'react-router-dom';
 
 interface PersonalStatsProps {
   isDarkMode?: boolean;
@@ -12,6 +13,8 @@ const PersonalStats: React.FC<PersonalStatsProps> = ({
   stats,
   loading = false 
 }) => {
+  const navigate = useNavigate();
+  
   // Loading state
   if (loading) {
     return (
@@ -34,6 +37,11 @@ const PersonalStats: React.FC<PersonalStatsProps> = ({
   const avgResolutionTimePercentage = stats?.avgResolutionTimePercentage ?? 0;
   const successRate = stats?.successRate ?? 0;
 
+  // Navigate to Statistics Page
+  const handleNavigateToStats = () => {
+    navigate('/statistics');
+  };
+
   return (
     <div className={`
       rounded-lg border
@@ -44,7 +52,11 @@ const PersonalStats: React.FC<PersonalStatsProps> = ({
         <h3 className={`text-lg font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           Personal Stats
         </h3>
-        <button className={`text-sm font-medium ${isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}>
+        {/* More Button - Navigate to Statistics Page */}
+        <button 
+          onClick={handleNavigateToStats}
+          className={`text-sm font-medium ${isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}
+        > 
           More
         </button>
       </div>

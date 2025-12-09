@@ -57,12 +57,12 @@ const WelcomePage: React.FC = () => {
           </div>
 
           <nav className="flex items-center space-x-4">
-            <a 
+            <button 
             onClick={handleAboutUsClick} 
               className="text-white text-base font-normal hover:text-teal-400 transition hover:underline"
             >
               About Us
-            </a>
+            </button>
           </nav>
         </header>
         

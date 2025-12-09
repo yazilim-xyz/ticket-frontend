@@ -163,3 +163,51 @@ export interface DashboardNotification {
   time: string;
   read: boolean;
 }
+
+// ADMIN DASHBOARD TYPES
+export interface AdminDashboardStats {
+  totalTeamTickets: number;
+  totalTeamTicketsChange: string;
+  activeAgents: number;
+  activeAgentsChange: string;
+  resolvedThisWeek: number;
+  resolvedThisWeekChange: string;
+  avgTeamResolutionTime: string;
+  avgTeamResolutionTimeChange: string;
+}
+
+export interface AgentPerformance {
+  id: string;
+  name: string;
+  avatar: string;
+  email: string;
+  ticketsSolved: number;
+  activeTickets: number;
+  avgResolutionTime: string;
+  successRate: number;
+  status: 'online' | 'offline' | 'busy';
+}
+
+export interface DepartmentStats {
+  id: string;
+  name: string;
+  totalTickets: number;
+  resolvedTickets: number;
+  pendingTickets: number;
+  overdueTickets: number;
+  avgResolutionTime: string;
+}
+
+export interface TicketDistribution {
+  status: string;
+  count: number;
+  percentage: number;
+  color: string;
+}
+
+export interface TeamActivityData {
+  labels: string[];
+  createdData: number[];
+  resolvedData: number[];
+  period: 'week' | 'month' | 'year';
+}

@@ -45,12 +45,12 @@ const AboutUsPage: React.FC = () => {
                     </div>
 
                     <nav className="flex items-center space-x-4">
-                        <a 
+                        <button
                             onClick={handleHomeClick}
                             className="text-white text-base font-normal hover:text-teal-400 transition hover:underline cursor-pointer"
                         >
                             Home
-                        </a>
+                        </button>
                     </nav>
                 </header>
                 

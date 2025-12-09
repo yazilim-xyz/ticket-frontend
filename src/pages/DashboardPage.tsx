@@ -26,7 +26,7 @@ const DashboardPage: React.FC = () => {
   const { activityData, loading: activityLoading } = useActivityTrend('week');
   const { messages, sendMessage, loading: chatLoading, sending } = useChatMessages();
   const { tasks, loading: tasksLoading } = useUpcomingTasks();
-  const { notifications, markAsRead, loading: notificationsLoading } = useNotifications();
+  const { notifications, markAsRead, loading: notificationsLoading } = useNotifications(10);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -68,7 +68,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar userRole="user" />
+      <Sidebar userRole="user" /> {/* Bu kısım incelenecek */}
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
