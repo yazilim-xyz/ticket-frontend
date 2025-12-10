@@ -1,7 +1,27 @@
 import { RegisterData, LoginCredentials, AuthResponse } from '../types';
 
-// Mock kullanıcı veritabanı (geçici)
-const mockUsers: any[] = [];
+// Mock kullanıcı veritabanı - Test kullanıcıları ile 
+const mockUsers: any[] = [
+  {
+    id: 'admin_user_001',
+    fullName: 'Admin User',
+    email: 'admin@company.com',
+    department: 'IT',
+    password: 'admin123',
+    role: 'admin',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'test_user_001',
+    fullName: 'Test User',
+    email: 'user@company.com',
+    department: 'Support',
+    password: 'user123',
+    role: 'user',
+    createdAt: new Date().toISOString(),
+  }
+];
+
 
 // Mock API delay simülasyonu
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -29,7 +49,7 @@ export const authService = {
       email: data.email,
       department: data.department,
       password: data.password, // Password kaydedildi (gerçek uygulamada hash'lenecek)
-      role: 'user' as const,
+      role: 'user' as const, // Yeni kullanıcılar default olarak 'user'
       createdAt: new Date().toISOString(),
     };
 

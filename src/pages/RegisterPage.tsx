@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import background from '../assets/background.png';
 import { authService } from '../services/authService';
@@ -12,24 +12,40 @@ const RegisterPage: React.FC = () => {
     department: '',
     email: '',
     password: '', // Password eklendi
+    confirmPassword: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isEmailExists, setIsEmailExists] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+
+    // Email değiştiğinde error'u temizle
+    if (e.target.name === 'email') {
+      setIsEmailExists(false);
+      setError('');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setIsEmailExists(false);
 
-    // Password validation
+    // Password match kontrolü
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
+    // Password validation 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       setIsLoading(false);
@@ -37,20 +53,30 @@ const RegisterPage: React.FC = () => {
     }
 
     try {
-      const response = await authService.register(formData);
+      const response = await authService.register({
+        fullName: formData.fullName,
+        email: formData.email,
+        department: formData.department,
+        password: formData.password,
+      });
+
       console.log('Registration successful:', response);
       
       // Token'ı kaydet
       authService.saveAuth(response);
       
-      // Success message (opsiyonel)
-      alert('Registration successful! Redirecting to login...');
-      
       // Login sayfasına yönlendir
       navigate('/login');
+
     } catch (err: any) {
       console.error('Registration failed:', err);
-      setError(err.message || 'Registration failed. Please try again.');
+
+      if (err.message === 'This email is already registered') {
+        setIsEmailExists(true);
+        setError('This email is already registered.');
+      } else {
+        setError(err.message || 'Registration failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -149,11 +175,17 @@ const RegisterPage: React.FC = () => {
           Ticket System
         </h2>
 
-        {/* Form */}
+        {/* Register Form */}
         <div className="w-80 flex flex-col gap-4">
           <h3 className={`text-xl font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-black'} text-center mb-3`}>
             Register Now
           </h3>
+
+          {/* Info Text */}
+          <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter']`}>
+            To complete your registration, please click the{' '}
+            <span className="font-bold">'Complete Registration'</span> button.
+          </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Full Name Input */}
@@ -163,7 +195,7 @@ const RegisterPage: React.FC = () => {
               value={formData.fullName}
               onChange={handleChange}
               placeholder="Full Name"
-              className={`w-full h-10 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
               required
             />
 
@@ -174,7 +206,7 @@ const RegisterPage: React.FC = () => {
               value={formData.department}
               onChange={handleChange}
               placeholder="Department Name"
-              className={`w-full h-10 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
               required
             />
 
@@ -185,45 +217,89 @@ const RegisterPage: React.FC = () => {
               value={formData.email}
               onChange={handleChange}
               placeholder="email@domain.com"
-              className={`w-full h-10 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
               required
             />
 
-            {/* Password Input - YENİ EKLENEN */}
+            {/* Password Input */}
             <input
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               placeholder="Password (min. 6 characters)"
-              className={`w-full h-10 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
               required
               minLength={6}
+            />
+
+            {/* Confirm Password Input */}
+            <input
+              type="password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="Confirm Password"
+              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+              required
             />
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full h-10 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
+              className={`w-full h-9 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
                 isLoading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              {isLoading ? 'Registering...' : 'Complete Registration'}
+              {isLoading ? 'Creating Account...' : 'Complete Registration'}
             </button>
           </form>
 
-          {/* Error Message */}
-          {error && (
+          {/* Email Exists Uyarısı  */}
+          {isEmailExists && (
+            <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
+              <p className="text-red-600 text-sm font-medium text-center mb-2">
+                This email is already registered!
+              </p>
+              <p className={`text-[11px] text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mb-2`}>
+                Already have an account?
+              </p>
+              <Link 
+                to="/login"
+                className="block w-full text-center py-1.5 px-4 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Go to Login
+              </Link>
+            </div>
+          )}
+          
+          {/* Error Message (Diğer hatalar için) */}
+          {error && !isEmailExists && (
             <p className="text-red-500 text-sm font-normal font-['Inter'] text-center mt-2">
               {error}
             </p>
           )}
 
-          {/* Info Text */}
-          <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter']`}>
-            To complete your registration, please click the{' '}
-            <span className="font-bold">'Complete Registration'</span> button.
+          {/* Already have account? */}
+          <div className="text-center mt-4">
+            <p className={`${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter']`}>
+              Already have an account?{' '}
+              <Link 
+                to="/login" 
+                className={`${isDarkMode ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-700'} font-medium transition-colors`}
+              >
+              Sign in
+              </Link>
+            </p>
+          </div>
+
+          {/* Terms Text */}
+          <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter'] leading-6 mt-2`}>
+            By clicking continue, you agree to our{' '}
+            <span className={`${isDarkMode ? 'text-white' : 'text-black'} font-normal`}>Terms of Service</span>
+            {' '}and{' '}
+            <span className={`${isDarkMode ? 'text-white' : 'text-black'} font-normal`}>Privacy Policy</span>
           </p>
         </div>
       </div>

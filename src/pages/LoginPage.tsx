@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import background from '../assets/background.png';
 import { authService } from '../services/authService';
 
 const LoginPage: React.FC = () => {
+  const navigate = useNavigate(); 
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -33,9 +34,12 @@ const LoginPage: React.FC = () => {
       // Token'ı kaydet
       authService.saveAuth(response);
       
-      // Dashboard'a yönlendir (henüz yapmadık, şimdilik alert)
-      alert('Login successful! Welcome back!');
-      // navigate('/dashboard'); // Dashboard hazır olunca açılacak
+      // Role'e göre yönlendirme yap
+      if (response.user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
       
     } catch (err: any) {
       console.error('Login failed:', err);
@@ -136,7 +140,7 @@ const LoginPage: React.FC = () => {
               value={formData.email}
               onChange={handleChange}
               placeholder="email@domain.com"
-              className={`w-full h-10 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+              className={`w-full h-9 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
               required
             />
 
@@ -147,7 +151,7 @@ const LoginPage: React.FC = () => {
               value={formData.password}
               onChange={handleChange}
               placeholder="Password"
-              className={`w-full h-10 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+              className={`w-full h-9 px-3 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
               required
             />
 
@@ -165,7 +169,7 @@ const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full h-10 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
+              className={`w-full h-9 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
                 isLoading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
@@ -179,6 +183,19 @@ const LoginPage: React.FC = () => {
               {error}
             </p>
           )}
+
+          {/* Don't have account? */}
+          <div className="text-center mt-4">
+            <p className={`${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter']`}>
+              Don't have an account?{' '}
+              <Link 
+                to="/register" 
+                className={`${isDarkMode ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-700'} font-medium transition-colors`}
+              >
+                Register
+              </Link>
+            </p>
+          </div>
 
           {/* Terms Text */}
           <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter'] leading-6 mt-2`}>

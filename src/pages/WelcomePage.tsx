@@ -25,9 +25,13 @@ const WelcomePage: React.FC = () => {
     navigate('/login'); 
   };
 
-  //hakkımızdaya tıklandığında hakkımızda yçnlendirilmesi
+  const handleRegisterClick = () => {
+    navigate('/register'); 
+  };
+
+  // hakkımızdaya tıklandığında hakkımızda yönlendirilmesi
   const handleAboutUsClick = () => {
-    navigate('/hakkimizda'); 
+    navigate('/aboutus'); 
   };
 
   return (
@@ -78,12 +82,21 @@ const WelcomePage: React.FC = () => {
              The fastest and most efficient way to manage all your corporate support requests.
           </p>
 
-          <button 
-            onClick={handleLoginClick}
-            className="px-8 py-3 bg-emerald-500 rounded-full shadow-lg hover:bg-emerald-600 transition duration-300 text-white text-lg font-semibold"
-          >
-            SIGN IN
-          </button>
+          <div className="flex gap-4">
+            <button 
+              onClick={handleLoginClick}
+              className="px-8 py-3 bg-emerald-500 rounded-full shadow-lg hover:bg-emerald-600 transition duration-300 text-white text-lg font-semibold"
+            >
+              SIGN IN
+            </button>
+
+            <button 
+              onClick={handleRegisterClick}
+              className="px-8 py-3 bg-violet-700 rounded-full shadow-lg hover:bg-violet-800 transition duration-300 text-white text-lg font-semibold"
+            >
+              REGISTER
+            </button>
+          </div>
         </main>
 
         {/*alttaki kısım*/}

@@ -68,7 +68,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar userRole="user" /> {/* Bu kısım incelenecek */}
+      <Sidebar userRole="user" />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
