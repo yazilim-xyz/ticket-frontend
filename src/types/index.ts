@@ -211,3 +211,37 @@ export interface TeamActivityData {
   resolvedData: number[];
   period: 'week' | 'month' | 'year';
 }
+
+// OVERDUE TICKETS TYPE
+export interface OverdueTicket {
+  id: string;
+  ticketId: string;
+  title: string;
+  priority: 'High' | 'Medium' | 'Low';
+  assignedTo: string;
+  assignedToAvatar: string;
+  daysOverdue: number;
+  createdAt: string;
+  dueDate: string;
+}
+
+// CALENDAR TYPES
+export interface CalendarEvent {
+  id: string;
+  ticketId: string;
+  title: string;
+  description: string;
+  date: string; // ISO format: "2025-01-17"
+  type: 'ticket' | 'meeting' | 'task' | 'deadline';
+  priority: 'High' | 'Medium' | 'Low';
+  status: 'Open' | 'In Progress' | 'Done';
+  assignedTo?: string;
+  color: string;
+  tags?: string[];
+}
+
+export interface CalendarData {
+  events: CalendarEvent[];
+  month: number;
+  year: number;
+}
