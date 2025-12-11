@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/layouts/Sidebar';
+import { useTheme } from '../context/ThemeContext';
 import StatCard from '../components/dashboard/StatCard';
 import AgentLeaderboard from '../components/admin/AgentLeaderboard';
 import DepartmentPerformance from '../components/admin/DepartmentPerformance';
@@ -19,7 +20,7 @@ import {
 } from '../hooks/useAdminDashboard';
 
 const AdminDashboardPage: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
   const [activityPeriod, setActivityPeriod] = useState<'week' | 'month' | 'year'>('week');
 
   // Fetch all admin dashboard data
@@ -30,10 +31,6 @@ const AdminDashboardPage: React.FC = () => {
   const { activityData, loading: activityLoading } = useTeamActivityTrend(activityPeriod);
   const { messages, sendMessage, loading: chatLoading, sending } = useChatMessages();
   const { overdueTickets, loading: overdueLoading } = useOverdueTickets();
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
 
   const handleActivityPeriodChange = (period: 'week' | 'month' | 'year') => {
     setActivityPeriod(period);
@@ -74,7 +71,7 @@ const AdminDashboardPage: React.FC = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar userRole="admin" />
+      <Sidebar userRole="admin" isDarkMode = {isDarkMode} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">

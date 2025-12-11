@@ -18,7 +18,9 @@ const TeamChat: React.FC<TeamChatProps> = ({
   sending = false,
 }) => {
   const [inputMessage, setInputMessage] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   // Auto scroll to bottom when new message arrives
@@ -34,6 +36,7 @@ const TeamChat: React.FC<TeamChatProps> = ({
       const recipientId = 'user_456'; // Ezgi Yücel
       await onSendMessage(recipientId, inputMessage);
       setInputMessage('');
+      setAttachedFiles([]); // Clear attached files after sending
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -46,7 +49,31 @@ const TeamChat: React.FC<TeamChatProps> = ({
     }
   };
 
-   // Navigate to Chat Page
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      setAttachedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  // Navigate to Chat Page
   const handleNavigateToChat = () => {
     navigate('/chat');
   };
@@ -146,17 +173,61 @@ const TeamChat: React.FC<TeamChatProps> = ({
         )}
       </div>
 
+      {/* Attached Files Preview */}
+      {attachedFiles.length > 0 && (
+        <div className={`px-6 py-2 border-t ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex-shrink-0`}>
+          <div className="flex flex-wrap gap-2">
+            {attachedFiles.map((file, index) => (
+              <div
+                key={index}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${
+                  isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+                <span className="max-w-[100px] truncate">{file.name}</span>
+                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
+                  ({formatFileSize(file.size)})
+                </span>
+                <button
+                  onClick={() => handleRemoveFile(index)}
+                  className={`ml-1 ${isDarkMode ? 'hover:text-red-400' : 'hover:text-red-600'}`}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input Area */}
       <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex items-center gap-3 flex-shrink-0`}>
         {/* Attachment Button */}
         <button 
-          className={`p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
+          onClick={handleAttachmentClick}
+          className={`p-2 rounded-lg transition-colors ${
+            isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'
+          }`}
           disabled={sending}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
           </svg>
         </button>
+
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+        />
 
         {/* Input */}
         <input

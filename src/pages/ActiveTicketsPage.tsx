@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/layouts/Sidebar';
+import { useTheme } from '../context/ThemeContext';
 import { useTickets } from '../hooks/useTickets';
 import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
@@ -7,7 +8,7 @@ import { ticketService } from '../services/ticketService';
 import { Ticket } from '../types';
 
 const ActiveTicketsPage: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -23,9 +24,6 @@ const ActiveTicketsPage: React.FC = () => {
   
   const { tickets, loading, deleteTicket, refetch } = useTickets(currentUserId);
 
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
 
   const handleDelete = async (ticketId: string) => {
     if (window.confirm('Are you sure you want to delete this ticket?')) {
@@ -81,7 +79,7 @@ const ActiveTicketsPage: React.FC = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar userRole="user" />
+      <Sidebar userRole="user" isDarkMode = {isDarkMode} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">

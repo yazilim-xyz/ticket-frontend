@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 import logo from '../assets/logo.png';
 import background from '../assets/background.png';
 
 const PasswordResetPage: React.FC = () => {
   const navigate = useNavigate();
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +120,7 @@ const PasswordResetPage: React.FC = () => {
           <div className="w-72 flex flex-col gap-4 items-center">
             <div className="w-full p-4 bg-emerald-100 border border-emerald-500 rounded-lg">
               <p className="text-emerald-700 text-sm font-medium text-center">
-                ✅ Password reset link sent! Check your email. Redirecting to login...
+                ✓ Password reset link sent! Check your email. Redirecting to login...
               </p>
             </div>
           </div>
@@ -167,7 +164,7 @@ const PasswordResetPage: React.FC = () => {
                 to="/login" 
                 className={`text-sm font-medium ${isDarkMode ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-700'} transition-colors`}
               >
-                ← Back to Login
+                🠔 Back to Login
               </Link>
             </div>
           </div>

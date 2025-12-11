@@ -108,22 +108,51 @@ const WelcomePage: React.FC = () => {
 
           {/* kartlar */}
           <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <div className="p-5 bg-transparent rounded-lg shadow-2xl border-2 border-teal-600">
+            {/* Card 1 */}
+            <div
+              className="
+                p-5 rounded-2xl border border-teal-600/70 bg-black/30
+                shadow-[0_0_15px_rgba(45,212,191,0.15)]
+                transition-all duration-300 ease-out
+                hover:scale-[1.03] hover:-translate-y-2
+              hover:border-teal-400
+                hover:shadow-[0_0_35px_rgba(45,212,191,0.6)]
+              "
+            >
               <h3 className="text-lg font-semibold mb-2 text-white text-center italic"> Central Management</h3>
-              <p className="text-base font-normal text-zinc-300 text-center leading-relaxed">
-                 All your support requests,issues, and tasks in one place.Remove complexity and maintain clarity.
-              </p>
-            </div>
+                <p className="text-base font-normal text-zinc-300 text-center leading-relaxed">
+                   All your support requests,issues, and tasks in one place.Remove complexity and maintain clarity.
+                </p>
+              </div>
 
-            <div className="p-5 bg-transparent rounded-lg shadow-2xl border-2 border-teal-600">
+            {/* Card 2 */}
+            <div
+              className="
+                p-5 rounded-2xl border border-teal-600/70 bg-black/30
+                shadow-[0_0_15px_rgba(45,212,191,0.15)]
+                transition-all duration-300 ease-out
+                hover:scale-[1.03] hover:-translate-y-2
+              hover:border-teal-400
+                hover:shadow-[0_0_35px_rgba(45,212,191,0.6)]
+              "
+            >
               <h3 className="text-lg font-semibold mb-2 text-white text-center italic">Advanced Analytics & Reporting</h3>
               <p className="text-base font-normal text-zinc-300 text-center leading-relaxed">
                  Easily analyze your team's performance, resolution times, and the most common issues.
                 </p>
             </div>
 
-            <div className="p-5 bg-transparent rounded-lg shadow-2xl border-2 border-teal-600">
+            {/* Card 3 */}
+            <div
+              className="
+                p-5 rounded-2xl border border-teal-600/70 bg-black/30
+                shadow-[0_0_15px_rgba(45,212,191,0.15)]
+                transition-all duration-300 ease-out
+                hover:scale-[1.03] hover:-translate-y-2
+              hover:border-teal-400
+                hover:shadow-[0_0_35px_rgba(45,212,191,0.6)]
+              "
+            >
               <h3 className="text-lg font-semibold mb-2 text-white text-center italic"> Fast Resolution & Tracking</h3>
               <p className="text-base font-normal text-zinc-300 text-center leading-relaxed">
                 Assign requests instantly to the right teams,prioritize them, and track resolution progress in real-time.

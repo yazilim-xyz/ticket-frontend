@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/layouts/Sidebar';
+import { useTheme } from '../context/ThemeContext';
 import { useCalendarEvents } from '../hooks/useCalendar';
 import CalendarGrid from '../components/calendar/CalendarGrid';
 import TicketDetailPanel from '../components/calendar/TicketDetailPanel';
@@ -7,7 +8,7 @@ import { CalendarEvent } from '../types';
 import CalendarYearView from '../components/calendar/CalendarYearView';
 
 const CalendarPage: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
   const [selectedYear, setSelectedYear] = useState(2025);
   const [selectedMonth, setSelectedMonth] = useState(11); // 0 = January 11 = December
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -17,10 +18,6 @@ const CalendarPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month');
 
   const { events, loading, markAsDone } = useCalendarEvents(selectedYear, selectedMonth + 1);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
 
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
@@ -55,7 +52,7 @@ const CalendarPage: React.FC = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar userRole="user" />
+      <Sidebar userRole="user" isDarkMode = {isDarkMode}/>
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">

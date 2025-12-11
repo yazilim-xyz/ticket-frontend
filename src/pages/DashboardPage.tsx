@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Sidebar from '../components/layouts/Sidebar';
+import { useTheme } from '../context/ThemeContext';
 import StatCard from '../components/dashboard/StatCard';
 import PersonalStats from '../components/dashboard/PersonalStats';
 import ActivityTrend from '../components/dashboard/ActivityTrend';
@@ -18,7 +19,7 @@ import {
 } from '../hooks/useDashboard';
 
 const DashboardPage: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
 
   // Custom hooks ile canlı veri çek
   const { stats, loading: statsLoading, error: statsError } = useDashboardStats();
@@ -27,10 +28,6 @@ const DashboardPage: React.FC = () => {
   const { messages, sendMessage, loading: chatLoading, sending } = useChatMessages();
   const { tasks, loading: tasksLoading } = useUpcomingTasks();
   const { notifications, markAsRead, loading: notificationsLoading } = useNotifications(10);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
 
   // Chat mesajı gönderme fonksiyonu
   const handleSendMessage = async (recipientId: string, text: string) => {
@@ -68,7 +65,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar userRole="user" />
+      <Sidebar userRole="user" isDarkMode = {isDarkMode} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">

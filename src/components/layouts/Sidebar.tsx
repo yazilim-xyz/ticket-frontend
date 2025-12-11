@@ -4,7 +4,7 @@ import logo from '../../assets/logo.png';
 
 interface SidebarProps {
   userRole?: 'admin' | 'user';
-  isDarkMode?: boolean;
+  isDarkMode?: boolean; 
 }
 
 interface MenuItem {
@@ -16,11 +16,11 @@ interface MenuItem {
   userOnly?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}) => {
+const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user', isDarkMode = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
-
+  
   const menuItems: MenuItem[] = [
     {
       id: 'dashboard',
@@ -128,7 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}
       )
     },
     {
-      id: 'settings',
+     id: 'settings',
       label: 'Settings',
       path: '/settings',
       icon: (
@@ -160,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}
     if (path === '/logout') {
       // Handle logout
       localStorage.removeItem('user');
-      navigate('/login');
+      navigate('/');
     } else {
       navigate(path);
     }
@@ -177,14 +177,10 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}
   return (
     <div 
       className={`
-        h-screenflex felx-col transition-all duration- relative
+        h-screen border-r flex flex-col transition-all duration-300 relative
         ${isCollapsed ? 'w-20' : 'w-64'}
-        ${isDarkMode 
-        ? "bg-[#0D1B2A] border-r border-[#1B263B] text-gray-200"
-            : "bg-white border-r border-gray-200 text-gray-900"
-        }
-      `}
-    >
+        ${isDarkMode ? 'bg-gray-800 border-gray-500' : 'bg-zinc-100 border-zinc-300'}
+      `}>
       {/* Hamburger Menu - Sağ Üst Köşe */}
       <button 
         onClick={toggleSidebar}
@@ -195,7 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
         <svg 
-          className="w-5 h-5 text-cyan-800" 
+          className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-cyan-800'}`} 
           viewBox="0 0 20 20" 
           fill="currentColor"
         >
@@ -216,7 +212,9 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}
               alt="Enterprise Ticket System Logo" 
               className="w-24 h-24 mb-3"
             />
-            <h2 className="text-cyan-800 text-2xl font-normal font-['Inter'] leading-7 text-center">
+            <h2 className={`text-2xl font-normal font-['Inter'] leading-7 text-center ${
+              isDarkMode ? 'text-teal-600' : 'text-cyan-800'
+            }`}>
               Enterprise<br/>Ticket System
             </h2>
           </>
@@ -231,9 +229,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}
       </div>
 
       {/* Divider */}
-      <div className={`w-full h-px ${
-          isDarkMode ? "bg-[#1B263B]" : "bg-gray-200"
-        } mb-6`} />
+      <div className={`w-full h-px mb-6 ${isDarkMode ? 'bg-gray-500' : 'bg-zinc-300'}`} />
 
       {/* Menu Items */}
       <nav className="flex-1 px-5 overflow-y-auto">
@@ -245,23 +241,15 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}
               className={`
                 w-full h-10 px-4 rounded-lg flex items-center gap-4 transition-colors
                 ${isActive(item.path) 
-                  ? isDarkMode
-                    ? "bg-teal-600 text-white" 
-                    : "bg-teal-700 text-white"
-                  : isDarkMode
-                    ? "bg-[#1B263B] hover:bg-[#29415F] text-gray-300"
-                    : "bg-white hover:bg-gray-100 text-gray-700"
-              }}
+                  ? isDarkMode ? 'bg-teal-700 text-white' : 'bg-cyan-800 text-white'
+                  : isDarkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-white text-black hover:bg-gray-50'
+                }
                 ${isCollapsed ? 'justify-center' : ''}
               `}
               title={isCollapsed ? item.label : undefined}
             >
-              <span className={isActive(item.path) 
-                ? "text-white"
-                : isDarkMode 
-                ? "text-teal-300"
-                : "text-teal-700"}
-                >{item.icon}
+              <span className={isActive(item.path) ? 'text-white' : isDarkMode ? 'text-teal-600' : 'text-cyan-800'}>
+                {item.icon}
               </span>
               
               {!isCollapsed && (
@@ -270,9 +258,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user' , isDarkMode=false}
                     {item.label}
                   </span>
                   <svg 
-                    className={`w-3 h-6 ${isActive(item.path) 
-                      ? 'text-white' 
-                      : (isDarkMode ? 'text-gray-200' : 'text-cyan-800')}`} 
+                    className={`w-3 h-6 ${isActive(item.path) ? 'text-white' : isDarkMode ? 'text-white-400' : 'text-cyan-800'}`}
                     viewBox="0 0 12 24" 
                     fill="currentColor"
                   >

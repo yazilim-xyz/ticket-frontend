@@ -56,9 +56,6 @@ const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({
             Based on tickets resolved this week
           </p>
         </div>
-        <button className={`text-sm font-medium ${isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}>
-          View All
-        </button>
       </div>
 
       {/* Agents List */}

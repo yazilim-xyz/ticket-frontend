@@ -1,12 +1,14 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 import logo from '../assets/logo.png';
 import background from '../assets/background.png';
 import { authService } from '../services/authService';
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode, toggleTheme } = useTheme();
   const [formData, setFormData] = useState({
     fullName: '',
     department: '',
@@ -82,10 +84,6 @@ const RegisterPage: React.FC = () => {
     }
   };
 
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
   return (
     <div className="flex h-screen">
       {/* Sol Taraf - Background Image */}
@@ -98,8 +96,8 @@ const RegisterPage: React.FC = () => {
       </div>
 
       {/* Sağ Taraf - Form */}
-      <div className={`w-[32%] ${isDarkMode ? 'bg-gray-900' : 'bg-zinc-100'} flex flex-col items-center justify-start px-[75px] py-12 relative overflow-y-auto`}>
-        {/* Dark/Light Mode Toggle - Sağ Üst - Switch Style */}
+      <div className={`w-[32%] min-w-[400px] ${isDarkMode ? 'bg-gray-900' : 'bg-zinc-100'} flex flex-col items-center justify-start px-[75px] py-12 relative overflow-y-auto`}>
+        {/* Dark/Light Mode Toggle - Sağ Üst - Switch Style  */}
         <div className="absolute top-8 right-8 flex items-center gap-2">
           {/* Sun Icon with Tick */}
           <div className="relative">
@@ -158,149 +156,152 @@ const RegisterPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Logo */}
-        <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mb-6 shadow-lg p-0">
-          <img 
-            src={logo} 
-            alt="Enterprise Ticket System Logo" 
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        {/* Başlık */}
-        <h1 className={`text-2xl font-normal font-['Inter'] ${isDarkMode ? 'text-teal-400' : 'text-teal-600'} text-center mb-1`}>
-          Enterprise
-        </h1>
-        <h2 className={`text-2xl font-normal font-['Inter'] ${isDarkMode ? 'text-teal-400' : 'text-teal-600'} text-center mb-8`}>
-          Ticket System
-        </h2>
-
-        {/* Register Form */}
-        <div className="w-80 flex flex-col gap-4">
-          <h3 className={`text-xl font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-black'} text-center mb-3`}>
-            Register Now
-          </h3>
-
-          {/* Info Text */}
-          <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter']`}>
-            To complete your registration, please click the{' '}
-            <span className="font-bold">'Complete Registration'</span> button.
-          </p>
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {/* Full Name Input */}
-            <input
-              type="text"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="Full Name"
-              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
-              required
+        {/* Scrollable Content Container */}
+        <div className="flex flex-col items-center w-full max-w-[320px] mx-auto">
+          {/* Logo */}
+          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mb-4 shadow-lg p-0 flex-shrink-0">
+            <img 
+              src={logo} 
+              alt="Enterprise Ticket System Logo" 
+              className="w-full h-full object-cover"
             />
-
-            {/* Department Name Input */}
-            <input
-              type="text"
-              name="department"
-              value={formData.department}
-              onChange={handleChange}
-              placeholder="Department Name"
-              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
-              required
-            />
-
-            {/* Email Input */}
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="email@domain.com"
-              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
-              required
-            />
-
-            {/* Password Input */}
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Password (min. 6 characters)"
-              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
-              required
-              minLength={6}
-            />
-
-            {/* Confirm Password Input */}
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm Password"
-              className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
-              required
-            />
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`w-full h-9 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isLoading ? 'Creating Account...' : 'Complete Registration'}
-            </button>
-          </form>
-
-          {/* Email Exists Uyarısı  */}
-          {isEmailExists && (
-            <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
-              <p className="text-red-600 text-sm font-medium text-center mb-2">
-                This email is already registered!
-              </p>
-              <p className={`text-[11px] text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mb-2`}>
-                Already have an account?
-              </p>
-              <Link 
-                to="/login"
-                className="block w-full text-center py-1.5 px-4 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                Go to Login
-              </Link>
-            </div>
-          )}
-          
-          {/* Error Message (Diğer hatalar için) */}
-          {error && !isEmailExists && (
-            <p className="text-red-500 text-sm font-normal font-['Inter'] text-center mt-2">
-              {error}
-            </p>
-          )}
-
-          {/* Already have account? */}
-          <div className="text-center mt-4">
-            <p className={`${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter']`}>
-              Already have an account?{' '}
-              <Link 
-                to="/login" 
-                className={`${isDarkMode ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-700'} font-medium transition-colors`}
-              >
-              Sign in
-              </Link>
-            </p>
           </div>
 
-          {/* Terms Text */}
-          <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter'] leading-6 mt-2`}>
-            By clicking continue, you agree to our{' '}
-            <span className={`${isDarkMode ? 'text-white' : 'text-black'} font-normal`}>Terms of Service</span>
-            {' '}and{' '}
-            <span className={`${isDarkMode ? 'text-white' : 'text-black'} font-normal`}>Privacy Policy</span>
-          </p>
+          {/* Başlık */}
+          <h1 className={`text-2xl font-normal font-['Inter'] ${isDarkMode ? 'text-teal-400' : 'text-teal-600'} text-center mb-1`}>
+            Enterprise
+          </h1>
+          <h2 className={`text-2xl font-normal font-['Inter'] ${isDarkMode ? 'text-teal-400' : 'text-teal-600'} text-center mb-8`}>
+            Ticket System
+          </h2>
+
+          {/* Register Form */}
+          <div className="w-80 flex flex-col gap-4">
+            <h3 className={`text-xl font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-black'} text-center mb-3`}>
+              Register Now
+            </h3>
+
+            {/* Info Text */}
+            <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-sm font-normal font-['Inter']`}>
+              To complete your registration, please click the{' '}
+              <span className="font-bold">'Complete Registration'</span> button.
+            </p>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {/* Full Name Input */}
+              <input
+                type="text"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                placeholder="Full Name"
+                className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                required
+              />
+
+              {/* Department Name Input */}
+              <input
+                type="text"
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+                placeholder="Department Name"
+                className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                required
+              />
+
+              {/* Email Input */}
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="email@domain.com"
+                className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                required
+              />
+
+              {/* Password Input */}
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Password (min. 6 characters)"
+                className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                required
+                minLength={6}
+              />
+
+              {/* Confirm Password Input */}
+              <input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Confirm Password"
+                className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                required
+              />
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full h-9 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                {isLoading ? 'Creating Account...' : 'Complete Registration'}
+              </button>
+            </form>
+
+            {/* Email Exists Warning */}
+            {isEmailExists && (
+              <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-red-900/30 border border-red-700' : 'bg-red-50 border border-red-200'}`}>
+                <p className="text-red-600 text-xs font-medium text-center mb-1">
+                  This email is already registered!
+                </p>
+                <p className={`text-[10px] text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>
+                  Already have an account?
+                </p>
+                <Link 
+                  to="/login"
+                  className="block w-full text-center py-1.5 px-4 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
+                >
+                  Go to Login
+                </Link>
+              </div>
+            )}
+            
+            {/* Error Message */}
+            {error && !isEmailExists && (
+              <p className="text-red-500 text-xs font-normal font-['Inter'] text-center">
+                {error}
+              </p>
+            )}
+
+            {/* Already have account? */}
+            <div className="text-center mt-2">
+              <p className={`${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-xs font-normal font-['Inter']`}>
+                Already have an account?{' '}
+                <Link 
+                  to="/login" 
+                  className={`${isDarkMode ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-700'} font-medium transition-colors`}
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
+
+            {/* Terms Text */}
+            <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-zinc-500'} text-[11px] font-normal font-['Inter'] leading-relaxed mt-1`}>
+              By clicking continue, you agree to our{' '}
+              <span className={`${isDarkMode ? 'text-white' : 'text-black'} font-normal`}>Terms of Service</span>
+              {' '}and{' '}
+              <span className={`${isDarkMode ? 'text-white' : 'text-black'} font-normal`}>Privacy Policy</span>
+            </p>
+          </div>
         </div>
       </div>
     </div>
