@@ -1,17 +1,19 @@
-// src/pages/ActiveTickets.jsx
+// src/pages/TicketsDetail.jsx
 
-import React, { useState } from "react";
+import React, { useState , useEffect } from "react";
+import { ticketService } from '../services/ticketService';
+import { useTickets } from '../hooks/useTickets';
+import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
+import { Ticket } from '../types';
 
-const TicketDetail = ({ticket}) => {// içeriği dışarıdan alacak
+
+  const TicketDetail = ({ticket}) => {// içeriği dışarıdan alacak
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(ticket?.status || "Not Started");
- 
   const [isAttachmentsOpen, setIsAttachmentsOpen] = useState(false);
-
   const STATUS_OPTIONS = ["Not Started", "In Progress", "Blocked", "Done"];// dropdownda görünecek stateler
-
   const toggleStatusDropdown = () => setIsStatusOpen(prev => !prev);
-  
   const getPriorityColor = (priority) => {
   switch (priority) {
     case "Low":
@@ -19,18 +21,12 @@ const TicketDetail = ({ticket}) => {// içeriği dışarıdan alacak
     case "Medium":
       return "bg-yellow-500";
     case "High":
-      return "bg-red-500";
-  }
-};
-
-
-  const handleSend = () => {
-    
-    console.log("Status saved:", currentStatus);
-  };
-
+      return "bg-red-500";}};
+  const handleSend = () => {console.log("Status saved:", currentStatus);};
   const openAttachments = () => setIsAttachmentsOpen(true);
   const closeAttachments = () => setIsAttachmentsOpen(false);
+  const toggleTheme = () => {setIsDarkMode(!isDarkMode);};
+
 
   return (
     <div>
@@ -386,6 +382,7 @@ const TicketDetail = ({ticket}) => {// içeriği dışarıdan alacak
       
 
     
- </div> );
+ </div>
+ );
 };
 export default TicketDetail;
