@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { aiChatMockApi, AIChatMessage, ChatSession } from "../services/aiChatMockApi";
 import { Sparkles, Send, Plus, MessageSquare } from "lucide-react";
+import Sidebar from "../components/layouts/Sidebar";
 import logo from "../assets/logo.png";
 
 const AiChatBotPage: React.FC = () => {
@@ -71,70 +72,10 @@ const AiChatBotPage: React.FC = () => {
     return acc;
   }, {} as Record<string, ChatSession[]>);
 
-  const menuItems = [
-    "Dashboard",
-    "Active Tickets",
-    "All Tickets",
-    "Performance",
-    "Chat",
-    "Excel Reports",
-    "AI Bot",
-    "Calendar",
-    "Admin Panel",
-    "Settings",
-  ];
 
   return (
     <div className={`flex h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      {/* Hamburger Menu */}
-      <div className={`flex items-start p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"}`}
-        >
-          <svg className={`w-5 h-5 ${darkMode ? "text-gray-300" : "text-gray-600"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Sol Sidebar - Menu */}
-      <div className={`${sidebarOpen ? "w-56" : "w-0"} ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} border-r flex flex-col shadow-sm transition-all duration-300 overflow-hidden`}>
-        <div className="flex flex-col items-center py-6 px-4">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden ${darkMode ? "bg-gray-700" : "bg-white"}`}>
-            <img 
-              src={logo} 
-              alt="Logo" 
-              className="w-full h-full object-contain p-1"
-            />
-          </div>
-          <h1 className={`text-base font-bold mt-3 text-center leading-tight ${darkMode ? "text-teal-400" : "text-teal-800"}`}>
-            Enterprise
-            <br />
-            Ticket System
-          </h1>
-        </div>
-
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-          {menuItems.map((item) => (
-            <button
-              key={item}
-              className={`flex items-center justify-between w-full px-4 py-2.5 rounded-lg transition text-sm ${
-                item === "AI Bot"
-                  ? darkMode
-                    ? "bg-teal-600 text-white shadow-md"
-                    : "bg-teal-700 text-white shadow-md"
-                  : darkMode
-                    ? "hover:bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-100 text-gray-600"
-              }`}
-            >
-              <span className="font-medium">{item}</span>
-              <span className={`text-xs ${item === "AI Bot" ? "text-white" : darkMode ? "text-gray-500" : "text-gray-400"}`}>→</span>
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Sidebar isDarkMode={darkMode} />
 
       {/* Chat Geçmişi Sİdebar */}
       <div className={`w-80 border-r ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} flex flex-col`}>
