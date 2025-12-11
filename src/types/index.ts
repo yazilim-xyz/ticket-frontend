@@ -16,7 +16,7 @@ export type TicketStatus = 'new' | 'in_progress' | 'completed' | 'cancelled' | '
 
 export interface Ticket {
   id: string;
-  title: string;
+  title: string; // TCK-123
   description: string;
   project: string;
   priority: TicketPriority;
