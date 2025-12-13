@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 
 interface SidebarProps {
-  userRole?: 'admin' | 'user';
   isDarkMode?: boolean; 
 }
 
@@ -16,11 +15,13 @@ interface MenuItem {
   userOnly?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ userRole = 'user', isDarkMode = false }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   
+  const user = localStorage.getItem('user');
+  const userRole: 'admin' | 'user' = user ? JSON.parse(user).role : 'user'
   const menuItems: MenuItem[] = [
     {
       id: 'dashboard',

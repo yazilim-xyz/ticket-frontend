@@ -7,6 +7,7 @@ interface TicketActionsMenuProps {
   onDelete: () => void;
   isDarkMode?: boolean;
   userRole?: 'user' | 'admin';
+  canDelete?: boolean;
 }
 
 const TicketActionsMenu: React.FC<TicketActionsMenuProps> = ({
@@ -15,7 +16,8 @@ const TicketActionsMenu: React.FC<TicketActionsMenuProps> = ({
   onEdit,
   onDelete,
   isDarkMode = false,
-  userRole
+  userRole,
+  canDelete = true
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -36,8 +38,29 @@ const TicketActionsMenu: React.FC<TicketActionsMenuProps> = ({
     };
   }, [isOpen]);
 
+  const handleView = () => {
+    onView();
+    setIsOpen(false);
+  };
+
+  const handleEdit = () => {
+    onEdit();
+    setIsOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (!canDelete) {
+      alert('You do not have permission to delete tickets. Please enable "Create & Delete Tickets" in Admin Panel permissions.');
+      setIsOpen(false);
+      return;
+    }
+    onDelete();
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative" ref={menuRef}>
+      {/* Three-dot menu button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`
@@ -45,14 +68,15 @@ const TicketActionsMenu: React.FC<TicketActionsMenuProps> = ({
           ${isDarkMode 
             ? 'hover:bg-gray-700 text-gray-400' 
             : 'hover:bg-gray-100 text-gray-600'
-          }
-        `}
+          }`}
+          aria-label="More actions"
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
         </svg>
       </button>
 
+      {/* Dropdown menu */}
       {isOpen && (
         <div 
           className={`
@@ -65,10 +89,7 @@ const TicketActionsMenu: React.FC<TicketActionsMenuProps> = ({
         >
           {/* View Details - Both user and admin */}
           <button
-            onClick={() => {
-              onView();
-              setIsOpen(false);
-            }}
+            onClick={handleView}
             className={`
               w-full px-4 py-2 text-left text-sm flex items-center gap-3 transition-colors
               ${isDarkMode 
@@ -86,10 +107,7 @@ const TicketActionsMenu: React.FC<TicketActionsMenuProps> = ({
           
           {/* Update Status - Both user and admin */}
           <button
-            onClick={() => {
-              onEdit();
-              setIsOpen(false);
-            }}
+            onClick={handleEdit}
             className={`
               w-full px-4 py-2 text-left text-sm flex items-center gap-3 transition-colors
               ${isDarkMode 
@@ -110,20 +128,19 @@ const TicketActionsMenu: React.FC<TicketActionsMenuProps> = ({
               <div className={`h-px my-1 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
               
               <button
-                onClick={() => {
-                  onDelete();
-                  setIsOpen(false);
-                }}
-                className={`
-                  w-full px-4 py-2 text-left text-sm flex items-center gap-3 transition-colors
-                  text-red-600 hover:bg-red-50
-                  ${isDarkMode && 'hover:bg-red-900/20'}
-                `}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete Ticket
+                onClick={handleDelete}
+                disabled={!canDelete}
+                className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                    canDelete
+                      ? 'text-red-600 hover:bg-red-50'
+                      : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                  title={!canDelete ? 'Permission required to delete tickets' : 'Delete ticket'}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                {canDelete ? 'Delete Ticket' : 'Delete (No Permission)'}
               </button>
             </>
           )} 

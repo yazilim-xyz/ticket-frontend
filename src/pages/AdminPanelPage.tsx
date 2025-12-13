@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { adminMockApi, AdminStats, AdminUser, ActivityLog, Permission } from '../services/adminMockApi';
 import AddUserModal from '../components/modals/AddUserModal';
 import AddDepartmentModal from '../components/modals/AddDepartmentModal';
 import EditUserModal from '../components/modals/EditUserModal';
 import ChangeRoleModal from '../components/modals/ChangeRoleModal';
+import DeleteUserConfirmationModal from '../components/modals/DeleteUserConfirmationModal';
 import UserActionsDropdown from '../components/dropdowns/UserActionsDropdown';
 
 const AdminPanelPage: React.FC = () => {
@@ -29,6 +31,9 @@ const AdminPanelPage: React.FC = () => {
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const { refreshPermissions } = usePermissions();
+  const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; email: string } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -78,6 +83,10 @@ const AdminPanelPage: React.FC = () => {
       // Update logs
       const logsData = await adminMockApi.getActivityLogs();
       setActivityLogs(logsData);
+
+      // Refresh global permissions
+      await refreshPermissions();
+
     } catch (error) {
       console.error('Failed to toggle permission:', error);
     }
@@ -120,13 +129,10 @@ const AdminPanelPage: React.FC = () => {
     }
   };
 
-  const handleEditUser = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    if (user) {
-        setSelectedUser(user);
-        setIsEditUserModalOpen(true);
-    }
-    };
+  const handleEditUser = (user: AdminUser) => { 
+    setSelectedUser(user);
+    setIsEditUserModalOpen(true);
+  };
 
     const handleEditUserSubmit = async (userId: string, userData: {
         fullName: string;
@@ -146,13 +152,10 @@ const AdminPanelPage: React.FC = () => {
     }
   };
 
-  const handleChangeRole = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    if (user) {
-        setSelectedUser(user);
-        setIsChangeRoleModalOpen(true);
-    }
-    };
+  const handleChangeRole = (user: AdminUser) => { // userId yerine user
+    setSelectedUser(user);
+    setIsChangeRoleModalOpen(true);
+  };
 
   const handleChangeRoleSubmit = async (userId: string, newRole: 'admin' | 'user') => {
     try {
@@ -167,23 +170,30 @@ const AdminPanelPage: React.FC = () => {
     }
     };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = (userId: string, userName: string, userEmail: string) => {
+   setUserToDelete({ id: userId, name: userName, email: userEmail });
+   setIsDeleteUserModalOpen(true);
+ };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
     try {
-        await adminMockApi.deleteUser(userId);
-        setUsers(users.filter(u => u.id !== userId));
+      await adminMockApi.deleteUser(userToDelete.id);
+      const updatedUsers = await adminMockApi.getUsers();
+      setUsers(updatedUsers);
     
-        const [statsData, logsData] = await Promise.all([
-        adminMockApi.getStats(),
-        adminMockApi.getActivityLogs(),
-        ]);
-        setStats(statsData);
-        setActivityLogs(logsData);
+      const statsData = await adminMockApi.getStats();
+      setStats(statsData);
+    
+      const logsData = await adminMockApi.getActivityLogs();
+      setActivityLogs(logsData);
+    
+      setUserToDelete(null);
     } catch (error) {
-        console.error('Failed to delete user:', error);
+      console.error('Failed to delete user:', error);
     }
   };
-
-
 
   const scrollToUserManagement = () => {
     const element = document.getElementById('user-management');
@@ -244,7 +254,7 @@ const AdminPanelPage: React.FC = () => {
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <Sidebar isDarkMode={isDarkMode} userRole="admin" />
+      <Sidebar isDarkMode={isDarkMode}  />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -524,10 +534,10 @@ const AdminPanelPage: React.FC = () => {
                           userName={user.fullName}
                           userEmail={user.email}
                           userStatus={user.status}
-                          onEdit={handleEditUser}
-                          onChangeRole={handleChangeRole}
-                          onToggleStatus={handleToggleStatus}
-                          onDelete={handleDeleteUser}
+                          onEdit={() => handleEditUser(user)}
+                          onChangeRole={() => handleChangeRole(user)}
+                          onToggleStatus={() => handleToggleStatus(user.id)}
+                          onDelete={() => handleDeleteUser(user.id, user.fullName, user.email)}
                         />
                       </td>
                     </tr>
@@ -589,7 +599,7 @@ const AdminPanelPage: React.FC = () => {
 
               {/* Export Reports */}
               <button 
-                onClick={() => navigate('/excel-report')}
+                onClick={() => navigate('/excel-reports')}
                 className={`p-6 rounded-xl border transition-all hover:shadow-lg hover:border-teal-500/50 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
               >
                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
@@ -752,6 +762,20 @@ const AdminPanelPage: React.FC = () => {
         onSubmit={handleEditUserSubmit}
         user={selectedUser}
       />
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <DeleteUserConfirmationModal
+          isOpen={isDeleteUserModalOpen}
+          onClose={() => {
+            setIsDeleteUserModalOpen(false);
+            setUserToDelete(null);
+          }}
+          onConfirm={handleConfirmDeleteUser}
+          isDarkMode={isDarkMode}
+          userName={userToDelete.name}
+          userEmail={userToDelete.email}
+        />
+      )}
       <ChangeRoleModal
         isOpen={isChangeRoleModalOpen}
         onClose={() => setIsChangeRoleModalOpen(false)}
