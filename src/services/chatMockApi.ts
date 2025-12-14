@@ -13,15 +13,14 @@ export interface ChatMessage {
 // ------ MOCK DATA ------
 export const mockUsers: ChatUser[] = [
   { id: 1, name: "Ezgi Yücel", lastMessageDate: "Oct 16" },
-  { id: 2, name: "Ezgi Yücel", lastMessageDate: "Oct 16" },
+  { id: 2, name: "Ahmet Yılmaz", lastMessageDate: "Oct 16" },
   { id: 3, name: "Nisa Öztürk", lastMessageDate: "Oct 16" },
   { id: 4, name: "Beyzanur Aslan", lastMessageDate: "Oct 16" },
   { id: 5, name: "Türker Kıvılcım", lastMessageDate: "Oct 16" },
   { id: 6, name: "Beyda Ertek", lastMessageDate: "Oct 16" },
   { id: 7, name: "Vedat Tatlı", lastMessageDate: "Oct 16" },
-  { id: 8, name: "Türker Kıvılcım", lastMessageDate: "Oct 16" },
-  { id: 9, name: "Beyzanur Aslan", lastMessageDate: "Oct 16" },
-  { id: 10, name: "Nisa Öztürk", lastMessageDate: "Oct 16" },
+  { id: 8, name: "Mehmet Kaya", lastMessageDate: "Oct 16" },
+  { id: 9, name: "Ayşe Demir", lastMessageDate: "Oct 16" },
 ];
 
 const mockMessages: Record<number, ChatMessage[]> = {
@@ -73,6 +72,19 @@ export const chatMockApi = {
       mockMessages[userId].push(msg);
 
       resolve(msg);
+    });
+  }, 
+
+  deleteChat(userId: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        delete mockMessages[userId];
+        const index = mockUsers.findIndex(u => u.id === userId);
+        if (index > -1) {
+          mockUsers.splice(index, 1);
+        }
+        resolve(true);
+      }, 200);
     });
   }
 };

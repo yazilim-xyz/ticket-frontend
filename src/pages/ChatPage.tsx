@@ -6,14 +6,19 @@ import { useTheme } from "../context/ThemeContext";
 const ChatPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const [users, setUsers] = useState<ChatUser[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<ChatUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    chatMockApi.getUsers().then(setUsers);
+    chatMockApi.getUsers().then((data) => {
+      setUsers(data);
+      setFilteredUsers(data);
+    });
   }, []);
 
   useEffect(() => {
@@ -21,6 +26,17 @@ const ChatPage: React.FC = () => {
       chatMockApi.getMessages(selectedUser.id).then(setMessages);
     }
   }, [selectedUser]);
+
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter(user =>
+        user.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [searchQuery, users]);
 
   const handleSend = async () => {
     if (!selectedUser || !input.trim()) return;
@@ -30,6 +46,20 @@ const ChatPage: React.FC = () => {
     setInput("");
     setAttachedFiles([]);
   }; 
+
+  const handleDeleteChat = (userId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = window.confirm("Bu sohbeti silmek istediğinizden emin misiniz?");
+    if (confirmed) {
+      const updatedUsers = users.filter(u => u.id !== userId);
+      setUsers(updatedUsers);
+      setFilteredUsers(updatedUsers);
+      if (selectedUser?.id === userId) {
+        setSelectedUser(null);
+        setMessages([]);
+      }
+    }
+  };
 
   const handleAttachmentClick = () => {
     fileInputRef.current?.click();
@@ -67,7 +97,7 @@ const ChatPage: React.FC = () => {
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <Sidebar isDarkMode={isDarkMode} />
+      <Sidebar  isDarkMode={isDarkMode} />
 
       <div className={`w-80 border-r ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} flex flex-col`}>
         <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -77,8 +107,10 @@ const ChatPage: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
-              type="text"
+              type="innput"
               placeholder="Search users..."
+              value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full pl-10 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
                 isDarkMode 
                   ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500' 
@@ -89,11 +121,11 @@ const ChatPage: React.FC = () => {
         </div>
 
         <div className="overflow-y-auto flex-1">
-          {users.map((u) => (
+          {filteredUsers.map((u) => (
             <div
               key={u.id}
               onClick={() => setSelectedUser(u)}
-              className={`flex items-center px-4 py-3 cursor-pointer border-b transition ${
+              className={`flex items-center px-4 py-3 cursor-pointer border-b transition group ${
                 isDarkMode
                   ? `hover:bg-gray-700 border-gray-700 ${selectedUser?.id === u.id ? 'bg-gray-700' : ''}`
                   : `hover:bg-gray-50 border-gray-100 ${selectedUser?.id === u.id ? 'bg-gray-50' : ''}`
@@ -108,6 +140,18 @@ const ChatPage: React.FC = () => {
               </div>
 
               <div className={`text-xs ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{u.lastMessageDate}</div>
+
+              <button
+                onClick={(e) => handleDeleteChat(u.id, e)}
+                className={`ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500 hover:bg-opacity-10 ${
+                  isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'
+                }`}
+                title="Sohbeti Sil"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
             </div>
           ))}
         </div>
@@ -279,12 +323,48 @@ const ChatPage: React.FC = () => {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
-            <div className="text-center">
-              <svg className={`w-16 h-16 mx-auto mb-4 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Select a user to start chat</p>
+          <div className={`flex-1 flex flex-col ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} flex items-center justify-end`}>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-gray-600' : 'text-yellow-500'}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                  </svg>
+                  {!isDarkMode && (
+                    <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                
+                <button onClick={toggleTheme} className="relative w-14 h-7 rounded-full transition-colors duration-300 bg-cyan-500" aria-label="Toggle theme">
+                  <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isDarkMode ? 'translate-x-7' : 'translate-x-0'}`} />
+                </button>
+                
+                <div className="relative">
+                  <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-blue-400' : 'text-gray-800'}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                  </svg>
+                  {isDarkMode && (
+                    <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <svg className={`w-16 h-16 mx-auto mb-4 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Select a user to start chat</p>
+              </div>
             </div>
           </div>
         )}
