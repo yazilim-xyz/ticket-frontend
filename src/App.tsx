@@ -21,7 +21,7 @@ import AiChatBotPage from './pages/AiChatBotPage';
 import ChatPage from './pages/ChatPage';
 import PerformancePage from './pages/PerformancePage';
 import UserStatisticsPage from './pages/StatisticsPage';
-//import SettingsPage from './pages/SettingsPage';
+import SettingsPage from './pages/SettingsPage';
 import Error404Page from './pages/Error404Page';
 import Error403Page from './pages/Error403Page';
 import Error505Page from './pages/Error505Page';
@@ -59,7 +59,7 @@ function App() {
             <Route path="/ticket/:id" element={<TicketDetailPage />} />
             <Route path="/excel-reports" element={<ExcelReportsPage />} />
             <Route path="/ai-chat-bot" element={<AiChatBotPage />} />
-            {/*<Route path="/settings" element={<SettingsPage />} />*/}
+            <Route path="/settings" element={<SettingsPage />} />
 
             {/* Error Pages */}
             <Route path="/403" element={<Error403Page />} />
