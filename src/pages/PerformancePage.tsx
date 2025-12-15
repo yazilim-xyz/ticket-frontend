@@ -250,7 +250,7 @@ const PerformancePage: React.FC = () => {
 
   return (
     <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-white"}`}>
-      <Sidebar userRole="admin" isDarkMode={isDarkMode} />
+      <Sidebar isDarkMode={isDarkMode} />
 
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
