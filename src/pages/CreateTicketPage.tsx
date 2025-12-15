@@ -265,7 +265,7 @@ const CreateTicketPage: React.FC = () => {
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <div>
-                <h1 className={`text-3xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                <h1 className={`text-3xl font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
                   Create Ticket
                 </h1>
                 <p className={`mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
@@ -352,7 +352,7 @@ const CreateTicketPage: React.FC = () => {
                 </div>
 
                 {/* Title */}
-                <h3 className={`text-xl font-bold text-center mb-2 ${
+                <h3 className={`text-xl font-semibold text-center mb-2 ${
                   isDarkMode ? 'text-gray-100' : 'text-gray-900'
                 }`}>
                   Ticket Created!

@@ -195,7 +195,7 @@ const PerformancePage: React.FC = () => {
           >
             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-inner flex items-center justify-center`}>
               <div className="text-center">
-                <div className={`text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{total}</div>
+                <div className={`text-2xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{total}</div>
                 <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total</div>
               </div>
             </div>
@@ -238,7 +238,7 @@ const PerformancePage: React.FC = () => {
         <div className={`h-48 flex items-end justify-center gap-8 pb-2 border-b-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           {bars.map((bar) => (
             <div key={bar.label} className="flex flex-col items-center gap-2">
-              <span className={`text-sm font-bold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              <span className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                 {bar.value}
               </span>
               <div
@@ -299,7 +299,7 @@ const PerformancePage: React.FC = () => {
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <div>
-                <h1 className={`text-3xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                <h1 className={`text-3xl font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
                   Performance Overview
                 </h1>
                 <p className={`mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
@@ -365,7 +365,7 @@ const PerformancePage: React.FC = () => {
                     </div>
                     <div>
                       <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</p>
-                      <p className={`text-2xl font-bold ${colorClasses[stat.color]}`}>{stat.value}</p>
+                      <p className={`text-2xl font-semibold ${colorClasses[stat.color]}`}>{stat.value}</p>
                     </div>
                   </div>
                 </div>
@@ -575,7 +575,7 @@ const PerformancePage: React.FC = () => {
                   { label: "Deleted", value: buckets.deleted, color: "text-red-500", bg: isDarkMode ? "bg-red-900/20" : "bg-red-50" },
                 ].map((stat) => (
                   <div key={stat.label} className={`${stat.bg} rounded-xl p-4 text-center`}>
-                    <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                    <p className={`text-2xl  ${stat.color}`}>{stat.value}</p>
                     <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</p>
                   </div>
                 ))}

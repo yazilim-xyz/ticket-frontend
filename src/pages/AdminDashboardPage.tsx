@@ -146,7 +146,7 @@ const AdminDashboardPage: React.FC = () => {
           </div>
 
           {/* Page Title */}
-          <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
+          <h1 className="text-cyan-800 text-2xl font-semibold font-semibold leading-9 mb-3">
             Admin Dashboard
           </h1>
 

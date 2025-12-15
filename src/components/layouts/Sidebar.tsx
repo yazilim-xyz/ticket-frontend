@@ -213,7 +213,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
               alt="Enterprise Ticket System Logo" 
               className="w-24 h-24 mb-3"
             />
-            <h2 className={`text-2xl font-normal font-['Inter'] leading-7 text-center ${
+            <h2 className={`text-2xl font-semibold font-semibold leading-7 text-center ${
               isDarkMode ? 'text-teal-600' : 'text-cyan-800'
             }`}>
               Enterprise<br/>Ticket System
@@ -255,7 +255,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
               
               {!isCollapsed && (
                 <>
-                  <span className="flex-1 text-left text-base font-medium font-['Inter'] leading-6">
+                  <span className="flex-1 text-left text-base font-semibold font-semibold leading-6">
                     {item.label}
                   </span>
                   <svg 
