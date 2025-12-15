@@ -183,7 +183,7 @@ const SettingsPage: React.FC = () => {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className={`text-3xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+              <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
                 Settings
               </h1>
               <p className={`mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>

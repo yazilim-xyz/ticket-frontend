@@ -99,7 +99,7 @@ const AiChatBotPage: React.FC = () => {
       <div className={`w-80 border-r ${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"} flex flex-col`}>
         <div className={`p-4 border-b ${isDarkMode ? "border-gray-700" : "border-gray-200"}`}>
           <div className="mb-4">
-            <h2 className={`text-xl font-bold ${isDarkMode? "text-gray-200" : "text-gray-900"}`}>
+            <h2 className={`text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3`}>
               ENTERPRISE
               <br />
               <span className="text-sm font-normal">CHATBOT</span>

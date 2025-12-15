@@ -299,7 +299,7 @@ const PerformancePage: React.FC = () => {
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <div>
-                <h1 className={`text-3xl font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                <h1 className={`text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3`}>
                   Performance Overview
                 </h1>
                 <p className={`mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>

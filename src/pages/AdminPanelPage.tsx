@@ -261,9 +261,9 @@ const AdminPanelPage: React.FC = () => {
         {/* Header */}
         <div className={`px-8 py-6 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between">
-            <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+            <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
               Admin Panel
-            </h1>
+            </h1>           
 
             {/* Theme Toggle */}
             <div className="flex items-center gap-2">

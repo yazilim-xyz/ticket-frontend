@@ -26,11 +26,11 @@ export interface SystemSettings {
 // Mock veri
 let mockUserSettings: UserSettings = {
   id: "user_001",
-  firstName: "Pepito Rodrick",
-  lastName: "Coronel Sifuentes",
-  email: "pepito.c.sifuentes@uni.pe",
-  phoneCode: "+51",
-  phoneNumber: "969 123 456",
+  firstName: "Ezgi",
+  lastName: "Yücel",
+  email: "ezgi.yucel@company.com",
+  phoneCode: "+90",
+  phoneNumber: "596 123 456",
   profileImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200",
   username: "User-Name"
 };
