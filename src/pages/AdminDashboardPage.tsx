@@ -50,7 +50,7 @@ const AdminDashboardPage: React.FC = () => {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading admin dashboard...</p>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -61,7 +61,7 @@ const AdminDashboardPage: React.FC = () => {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center text-red-600">
-          <p className="text-xl font-semibold mb-2">Error loading admin dashboard</p>
+          <p className="text-xl font-semibold mb-2">Error loading dashboard</p>
           <p>{statsError}</p>
         </div>
       </div>

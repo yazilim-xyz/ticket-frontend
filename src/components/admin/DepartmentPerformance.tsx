@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DepartmentStats } from '../../types';
 
 interface DepartmentPerformanceProps {
@@ -12,9 +13,15 @@ const DepartmentPerformance: React.FC<DepartmentPerformanceProps> = ({
   departments = [],
   loading = false,
 }) => {
+  const navigate = useNavigate();
   // Calculate completion percentage
   const getCompletionRate = (resolved: number, total: number) => {
     return total > 0 ? Math.round((resolved / total) * 100) : 0;
+  };
+
+  // Navigate to Performance page
+  const handleDetailsClick = () => {
+    navigate('/performance');
   };
 
   // Loading state
@@ -47,7 +54,16 @@ const DepartmentPerformance: React.FC<DepartmentPerformanceProps> = ({
             Overview of all departments
           </p>
         </div>
-        <button className={`text-sm font-medium ${isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}>
+
+        {/* Details Button with Navigation */}
+        <button 
+          onClick={handleDetailsClick}
+          className={`text-sm font-medium ${
+            isDarkMode 
+              ? 'text-cyan-400 hover:text-cyan-300' 
+              : 'text-cyan-600 hover:text-cyan-700'
+            }`}
+        >
           Details
         </button>
       </div>

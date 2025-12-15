@@ -38,18 +38,21 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({
   const height = 180;
   const paddingTop = 10;
   const paddingBottom = 10;
-  const chartWidth = width;
+  const paddingLeft = 0;  // Space for Y-axis labels
+  const paddingRight = 0;
+  const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
 
   // Ölçekler
-  const xScale = chartWidth / (labels.length - 1);
-  const yScale = chartHeight / 100;
+  const maxValue = Math.max(...completedData, ...inProgressData, ...blockedData, 10);
+  const xScale = chartWidth / (labels.length - 1 || 1);
+  const yScale = maxValue > 0 ? chartHeight / maxValue : 0;
 
   // Çizgi oluştur
   const createLine = (dataArray: number[]) => {
     return dataArray.map((value, index) => {
-      const x = index * xScale;
-      const y = height - paddingBottom - value * yScale;
+      const x = paddingLeft + index * xScale; 
+      const y = paddingTop + chartHeight - value * yScale;
       return { x, y };
     });
   };
@@ -110,19 +113,30 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({
         >
           {/* Yatay grid çizgileri */}
           <g>
-            {[0, 25, 50, 75, 100].map((value) => {
-              const y = height - paddingBottom - value * yScale;
+            {[0, 25, 50, 75, 100].map((percentage) => {
+              const value = (maxValue * percentage) / 100;
+              const y = paddingTop + chartHeight - value * yScale;
               return (
-                <line
-                  key={`grid-h-${value}`}
-                  x1={0}
-                  y1={y}
-                  x2={width}
-                  y2={y}
-                  stroke={isDarkMode ? '#374151' : '#e5e7eb'}
-                  strokeWidth="1"
-                  strokeDasharray="5,5"
-                />
+                <g key={percentage}>
+                  {/* Grid line */}
+                  <line
+                    x1={paddingLeft}
+                    y1={y}
+                    x2={width - paddingRight}
+                    y2={y}
+                    stroke={isDarkMode ? '#374151' : '#e5e7eb'}
+                    strokeWidth="1"
+                  />
+                  {/* Y-axis label */}
+                  <text
+                    x={paddingLeft - 8}
+                    y={y + 3}
+                    textAnchor="end"
+                    className={`text-[10px] ${isDarkMode ? 'fill-gray-400' : 'fill-gray-500'}`}
+                  >
+                  {Math.round(value)}
+                  </text>
+                </g>
               );
             })}
           </g>
@@ -130,7 +144,7 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({
           {/* Dikey grid çizgileri */}
           <g>
             {labels.map((_, index) => {
-              const x = index * xScale;
+              const x = paddingLeft + index * xScale;
               return (
                 <line
                   key={`grid-v-${index}`}
@@ -206,19 +220,16 @@ const ActivityTrend: React.FC<ActivityTrendProps> = ({
         </svg>
 
         {/* X ekseni etiketleri */}
-        <div className="flex justify-between mt-3">
+        <div className="flex justify-between mt-2" style={{ paddingLeft: `${paddingLeft}px`, paddingRight: `${paddingRight}px` }}>
           {labels.map((label, i) => (
-            <div
+            <span
               key={i}
-              className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-              style={{ 
-                width: `${xScale}px`,
-                textAlign: 'center',
-              }}
+              className={`text-[15px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              style={{ width: `${100 / labels.length}%`, textAlign: 'center' }}
             >
               {label}
-            </div>
-          ))}
+            </span>
+            ))}
         </div>
       </div>
     </div>

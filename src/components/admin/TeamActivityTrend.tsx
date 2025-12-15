@@ -44,19 +44,22 @@ const TeamActivityTrend: React.FC<TeamActivityTrendProps> = ({
   // SVG dimensions
   const width = 700;
   const height = 250;
-  const paddingTop = 20;
-  const paddingBottom = 40;
+  const paddingTop = 5;
+  const paddingBottom = 5;
+  const paddingLeft = 25;  //Space for Y-axis labels
+  const paddingRight = 25;
+  const chartWidth = width - paddingLeft - paddingRight;
   const chartHeight = height - paddingTop - paddingBottom;
 
   // Scales
-  const maxValue = Math.max(...createdData, ...resolvedData, 0);
-  const xScale = width / (labels.length - 1 || 1);
+  const maxValue = Math.max(...createdData, ...resolvedData, 20);
+  const xScale = chartWidth / (labels.length - 1 || 1);
   const yScale = maxValue > 0 ? chartHeight / maxValue : 0;
 
   // Create line points
   const createLine = (dataArray: number[]) => {
     return dataArray.map((value, index) => {
-      const x = index * xScale;
+      const x = paddingLeft + index * xScale;
       const y = height - paddingBottom - value * yScale;
       return { x, y };
     });
@@ -156,27 +159,27 @@ const TeamActivityTrend: React.FC<TeamActivityTrendProps> = ({
         >
           {/* Horizontal grid lines */}
           <g>
-            {[0, 25, 50, 75, 100].map((value) => {
-              const scaledValue = (maxValue * value) / 100;
-              const y = height - paddingBottom - scaledValue * yScale;
+            {[0, 25, 50, 75, 100].map((percentage) => {
+              const value = (maxValue * percentage) / 100;
+              const y = paddingTop + chartHeight - value * yScale;
               return (
-                <g key={`grid-${value}`}>
+                <g key={`grid-${percentage}`}>
                   <line
-                    x1={0}
+                    x1={paddingLeft}
                     y1={y}
-                    x2={width}
+                    x2={width - paddingRight}
                     y2={y}
                     stroke={isDarkMode ? '#374151' : '#e5e7eb'}
                     strokeWidth="1"
                     strokeDasharray="5,5"
                   />
                   <text
-                    x={-10}
+                    x={paddingLeft - 10}
                     y={y + 4}
                     textAnchor="end"
                     className={`text-xs ${isDarkMode ? 'fill-gray-400' : 'fill-gray-600'}`}
                   >
-                    {Math.round(scaledValue)}
+                    {Math.round(value)}
                   </text>
                 </g>
               );
@@ -186,7 +189,7 @@ const TeamActivityTrend: React.FC<TeamActivityTrendProps> = ({
           {/* Vertical grid lines */}
           <g>
             {labels.map((_, index) => {
-              const x = index * xScale;
+              const x = paddingLeft + index * xScale;
               return (
                 <line
                   key={`grid-v-${index}`}
