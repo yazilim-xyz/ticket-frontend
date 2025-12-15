@@ -37,7 +37,7 @@ const LoginPage: React.FC = () => {
       
       // Role'e göre yönlendirme yap
       if (response.user.role === 'admin') {
-        navigate('/admin/dashboard');
+        navigate('/admin-dashboard');
       } else {
         navigate('/dashboard');
       }

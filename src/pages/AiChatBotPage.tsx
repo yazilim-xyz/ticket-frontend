@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { aiChatMockApi, AIChatMessage, ChatSession } from "../services/aiChatMockApi";
-import { Sparkles, Send, Plus, MessageSquare } from "lucide-react";
+import { Sparkles, Send, Plus, MessageSquare,Trash2} from "lucide-react";
 import Sidebar from "../components/layouts/Sidebar";
 import { useTheme } from "../context/ThemeContext";
 
@@ -63,6 +63,25 @@ const AiChatBotPage: React.FC = () => {
     setCurrentSession(session);
   };
 
+  const handleDeleteSession = async (
+  sessionId: string,
+  e: React.MouseEvent
+) => {
+  e.stopPropagation();
+
+  const confirmed = window.confirm("Bu sohbeti silmek istediğinize emin misiniz?");
+  if (!confirmed) return;
+
+  await aiChatMockApi.deleteSession(sessionId);
+
+  setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+
+  if (currentSession?.id === sessionId) {
+    setCurrentSession(null);
+    setMessages([]);
+  }
+};
+
   const groupedSessions = sessions.reduce((acc, session) => {
     if (!acc[session.category]) {
       acc[session.category] = [];
@@ -103,10 +122,10 @@ const AiChatBotPage: React.FC = () => {
                 {category}
               </h3>
               {sessionList.map((session) => (
-                <button
+                <div
                   key={session.id}
                   onClick={() => handleSelectSession(session)}
-                  className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg transition text-left mb-1 ${
+                  className={`group w-full flex items-start gap-3 px-3 py-2.5 rounded-lg transition text-left mb-1 ${
                     currentSession?.id === session.id
                       ? isDarkMode
                         ? "bg-gray-700"
@@ -116,6 +135,10 @@ const AiChatBotPage: React.FC = () => {
                         : "hover:bg-gray-100"
                   }`}
                 >
+                  <button
+                    onClick={() => handleSelectSession(session)}
+                    className="flex items-start gap-3 flex-1 min-w-0 text-left"
+                  >
                   <MessageSquare className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`} />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm truncate ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
@@ -123,6 +146,14 @@ const AiChatBotPage: React.FC = () => {
                     </p>
                   </div>
                 </button>
+                <button
+                    onClick={(e) => handleDeleteSession(session.id, e)}
+                    className={`opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-500/10 ${isDarkMode ? "text-gray-400 hover:text-red-400" : "text-gray-500 hover:text-red-600"}`}
+                    title="Sohbeti sil"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
             </div>
           ))}
