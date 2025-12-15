@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; 
 import logo from '../assets/logo.png'; 
+import { Users } from 'lucide-react';
 
 const AboutUsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -17,9 +18,35 @@ const AboutUsPage: React.FC = () => {
         isMounted ? 'opacity-100' : 'opacity-0'
     }`;
     
-    // welcome sayfasına yönlendirme
     const handleHomeClick = () => {
         navigate('/'); 
+    };
+
+    const teamMembers = [
+        { name: "Türker Kıvılcım", initials: "TK" },
+        { name: "Beyzanur Aslan", initials: "BA" },
+        { name: "Vedat Tatlı", initials: "VT" },
+        { name: "Yelda Delidoğan", initials: "YD" },
+        { name: "Furkan Mete Çalışkan", initials: "FMÇ" },
+        { name: "Nisa Öztürk", initials: "NÖ" },
+        { name: "Ezgi Yücel", initials: "EY" },
+        { name: "Beyda Ertek", initials: "BE" },
+        { name: "Özge Nur Kök", initials: "ÖNK" },
+    ];
+
+    const getGradient = (index: number) => {
+        const gradients = [
+            "from-teal-500 to-cyan-600",
+            "from-cyan-500 to-blue-600",
+            "from-blue-500 to-indigo-600",
+            "from-indigo-500 to-purple-600",
+            "from-purple-500 to-pink-600",
+            "from-pink-500 to-rose-600",
+            "from-rose-500 to-orange-600",
+            "from-orange-500 to-amber-600",
+            "from-amber-500 to-teal-600",
+        ];
+        return gradients[index % gradients.length];
     };
 
     return (
@@ -58,7 +85,7 @@ const AboutUsPage: React.FC = () => {
 
                 {/* içerik Kısmı */}
                 <main className={`pt-20 pb-16 flex flex-col items-center justify-center text-center ${contentClasses}`}>
-                    <div className="max-w-4xl mx-auto p-8">
+                    <div className="max-w-5xl mx-auto p-8">
                         
                         <h1 className="text-4xl md:text-5xl font-bold mb-8 text-teal-400 italic">
                             About Us
@@ -75,7 +102,7 @@ const AboutUsPage: React.FC = () => {
                             </p>
                         </div>
                         
-                        <div>
+                        <div className="mb-12">
                             <h2 className="text-2xl font-semibold mb-3 text-white italic">Our Values</h2>
                             <ul className="text-left text-base font-normal text-zinc-400 leading-relaxed list-disc list-inside space-y-1 w-fit mx-auto">
                                 <li>Transparency and Accountability</li>
@@ -83,6 +110,42 @@ const AboutUsPage: React.FC = () => {
                                 <li>User-Friendly Design</li>
                                 <li>Continuous Improvement</li>
                             </ul>
+                        </div>
+
+                        {/* Development Team Section */}
+                        <div className="mt-16">
+                            <div className="flex items-center justify-center gap-3 mb-8">
+                                <Users className="w-7 h-7 text-teal-400" />
+                                <h2 className="text-2xl font-semibold text-white italic">Development Team</h2>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                                {teamMembers.map((member, index) => (
+                                    <div
+                                        key={member.name}
+                                        className="group relative bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-xl p-4 
+                                                   hover:border-teal-500/50 hover:bg-gray-800/50 transition-all duration-300
+                                                   hover:scale-105 hover:shadow-lg hover:shadow-teal-500/10"
+                                        style={{ 
+                                            animationDelay: `${index * 100}ms`,
+                                        }}
+                                    >
+                                        {/* Avatar */}
+                                        <div className={`w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-br ${getGradient(index)} 
+                                                        flex items-center justify-center shadow-lg
+                                                        group-hover:scale-110 transition-transform duration-300`}>
+                                            <span className="text-white font-bold text-sm">
+                                                {member.initials}
+                                            </span>
+                                        </div>
+                                        
+                                        {/* Name */}
+                                        <p className="text-sm font-medium text-zinc-200 group-hover:text-teal-300 transition-colors duration-300">
+                                            {member.name}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </main>
@@ -97,4 +160,5 @@ const AboutUsPage: React.FC = () => {
         </div>
     );
 };
+
 export default AboutUsPage;
