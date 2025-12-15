@@ -247,7 +247,7 @@ const TicketDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-        <Sidebar userRole="user" />
+        <Sidebar />
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
         </div>
@@ -258,7 +258,7 @@ const TicketDetailPage: React.FC = () => {
   if (!ticket) {
     return (
       <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-        <Sidebar userRole="user" />
+        <Sidebar />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -285,7 +285,7 @@ const TicketDetailPage: React.FC = () => {
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-      <Sidebar userRole="user" isDarkMode = {isDarkMode} />
+      <Sidebar isDarkMode = {isDarkMode} />
 
       <div className="flex-1 overflow-y-auto">
         {/* Header */}

@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { useTickets } from '../hooks/useTickets';
 import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
+import DeleteConfirmationModal from '../components/modals/DeleteConfirmationModal';
 import { ticketService } from '../services/ticketService';
 import { Ticket } from '../types';
 
 const AllTicketsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { hasPermission } = usePermissions();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -17,18 +20,41 @@ const AllTicketsPage: React.FC = () => {
 
   // Modal states
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  
+  const [ticketToDelete, setTicketToDelete] = useState<{ id: string; title: string } | null>(null);
+
   // No userId - Admin sees all tickets
   const { tickets, loading, deleteTicket, refetch } = useTickets();
 
+  // Check permission
+  const canDeleteTickets = hasPermission('Create & Delete Tickets');
+
   const handleDelete = async (ticketId: string) => {
-    if (window.confirm('Are you sure you want to delete this ticket?')) {
-      try {
-        await deleteTicket(ticketId);
-      } catch (error) {
-        console.error('Failed to delete ticket:', error);
-      }
+    if (!canDeleteTickets) {
+      alert('You do not have permission to delete tickets. Please enable "Create & Delete Tickets" in Admin Panel permissions.');
+      return;
+    }
+
+    // Find ticket and open confirmation modal
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (ticket) {
+      setTicketToDelete({
+        id: ticket.id,
+        title: ticket.title,
+      });
+      setIsDeleteModalOpen(true);
+    }
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!ticketToDelete) return;
+
+    try {
+      await deleteTicket(ticketToDelete.id);
+      setTicketToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete ticket:', error);
     }
   };
 
@@ -76,7 +102,7 @@ const AllTicketsPage: React.FC = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar userRole="admin" isDarkMode = {isDarkMode} />
+      <Sidebar isDarkMode = {isDarkMode} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
@@ -236,6 +262,7 @@ const AllTicketsPage: React.FC = () => {
             onDelete={handleDelete}
             onUpdateStatus={handleUpdateStatus}
             userRole="admin"
+            canDelete={canDeleteTickets}
           />
         </div>
       </div>
@@ -251,6 +278,20 @@ const AllTicketsPage: React.FC = () => {
           ticket={selectedTicket}
           onUpdate={handleStatusUpdate}
           isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {ticketToDelete && (
+        <DeleteConfirmationModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setTicketToDelete(null);
+          }}
+          onConfirm={handleConfirmDelete}
+          isDarkMode={isDarkMode}
+          ticketTitle={ticketToDelete.title}
         />
       )}
     </div>

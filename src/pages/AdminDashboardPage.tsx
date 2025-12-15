@@ -71,7 +71,7 @@ const AdminDashboardPage: React.FC = () => {
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar userRole="admin" isDarkMode = {isDarkMode} />
+      <Sidebar isDarkMode = {isDarkMode} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">

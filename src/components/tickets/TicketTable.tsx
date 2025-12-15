@@ -10,9 +10,18 @@ interface TicketTableProps {
   onDelete: (ticketId: string) => void;
   onUpdateStatus: (ticketId: string) => void; 
   userRole: 'user' | 'admin';
+  canDelete?: boolean;
 }
 
-const TicketTable: React.FC<TicketTableProps> = ({ tickets, loading, isDarkMode, onDelete, onUpdateStatus, userRole }) => {
+const TicketTable: React.FC<TicketTableProps> = ({ 
+  tickets, 
+  loading, 
+  isDarkMode, 
+  onDelete, 
+  onUpdateStatus, 
+  userRole = 'user',
+  canDelete = true, // default true
+}) => {
   const navigate = useNavigate();
 
   const getInitials = (fullName: string): string => {
@@ -159,6 +168,7 @@ const TicketTable: React.FC<TicketTableProps> = ({ tickets, loading, isDarkMode,
                     onDelete={() => onDelete(ticket.id)}
                     isDarkMode={isDarkMode}
                     userRole={userRole}
+                    canDelete={canDelete} 
                   />
                 </td>
               </tr>
