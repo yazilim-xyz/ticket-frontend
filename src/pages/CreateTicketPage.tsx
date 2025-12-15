@@ -8,16 +8,14 @@ type Priority = "high" | "medium" | "low";
 type Status = "new" | "in_progress" | "blocked" | "completed";
 
 type CreateTicketPayload = {
+    id?:string;
   title: string;
   description: string;
   project?: string;
-  dueDate?: string; // ISO string ya da "YYYY-MM-DD" backendine göre
+  dueDate?: string; // "YYYY-MM-DD" ya da ISO
   priority: Priority;
-  status?: Status; // create'de default "new" göndereceğiz
-  // assignee/owner backend nasıl istiyorsa burası değişir:
-  // ownerId?: string;
-  // assigneeEmail?: string;
-  assignee?: string; // sende şimdilik text input vardı diye bıraktım
+  status?: Status;
+  assignee?: string;
 };
 
 const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
@@ -25,11 +23,6 @@ const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
   { value: "medium", label: "Medium" },
   { value: "low", label: "Low" },
 ];
-
-const created = await ticketService.createTicket(payload);
-const navigate = useNavigate();
-navigate(`/ticketdetails/${created.id}`);
-
 
 const PriorityDropdown: React.FC<{
   value: Priority | null;
@@ -45,7 +38,6 @@ const PriorityDropdown: React.FC<{
 
   return (
     <div className="relative inline-block text-left w-72">
-        <Sidebar userRole="admin"></Sidebar>
       <button
         type="button"
         className={`w-full h-11 px-4 rounded-[100px] flex items-center justify-between border ${
@@ -61,13 +53,15 @@ const PriorityDropdown: React.FC<{
       </button>
 
       {isOpen && (
-        <div className={`absolute mt-1 w-full rounded-md shadow-md z-10 border ${
-          isDarkMode ? "bg-gray-700 border-gray-600" : "bg-white border-zinc-300"
-        }`}>
+        <div
+          className={`absolute mt-1 w-full rounded-md shadow-md z-10 border ${
+            isDarkMode ? "bg-gray-700 border-gray-600" : "bg-white border-zinc-300"
+          }`}
+        >
           <button
             type="button"
-            className={`w-full px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-zinc-100 text-left ${
-              isDarkMode ? "hover:bg-gray-600 text-gray-200" : "text-black"
+            className={`w-full px-3 py-2 flex items-center gap-2 text-left ${
+              isDarkMode ? "hover:bg-gray-600 text-gray-200" : "hover:bg-zinc-100 text-black"
             }`}
             onClick={() => {
               onChange(null);
@@ -84,8 +78,8 @@ const PriorityDropdown: React.FC<{
             <button
               key={opt.value}
               type="button"
-              className={`w-full px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-zinc-100 text-left ${
-                isDarkMode ? "hover:bg-gray-600 text-gray-200" : "text-black"
+              className={`w-full px-3 py-2 flex items-center gap-2 text-left ${
+                isDarkMode ? "hover:bg-gray-600 text-gray-200" : "hover:bg-zinc-100 text-black"
               }`}
               onClick={() => {
                 onChange(opt.value);
@@ -106,15 +100,13 @@ const CreateTicketPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
 
-  // form state
   const [title, setTitle] = useState("");
   const [project, setProject] = useState("");
   const [assignee, setAssignee] = useState("");
   const [priority, setPriority] = useState<Priority | null>(null);
-  const [dueDate, setDueDate] = useState(""); // "YYYY-MM-DD"
+  const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
 
-  // ui state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -125,7 +117,7 @@ const CreateTicketPage: React.FC = () => {
     !isSubmitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    e.preventDefault();
     setErrorMsg(null);
 
     if (!priority) {
@@ -142,28 +134,9 @@ const CreateTicketPage: React.FC = () => {
       status: "new",
       dueDate: dueDate || undefined,
     };
-    try {
-    setIsSubmitting(true);
-    const created = await ticketService.createTicket(payload);
-    navigate(`/ticketdetails/${created.id}`);
-  } catch (err) {
-    setErrorMsg("Failed to create ticket.");
-  } finally {
-    setIsSubmitting(false);
-  }
 
     try {
       setIsSubmitting(true);
-
-      // ✅ gerçek API
-      const created = await ticketService.createTicket(payload);
-      const createdId = (created?.id ?? created?.ticketId ?? created) as string | number | undefined;
-
-      if (createdId) {
-        navigate(`/ticketdetails/${createdId}`);
-      } else {
-        navigate("/active-tickets");
-      }
     } catch (err) {
       console.error("Create ticket failed:", err);
       setErrorMsg("Failed to create ticket. Please try again.");
@@ -174,13 +147,13 @@ const CreateTicketPage: React.FC = () => {
 
   return (
     <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-white"}`}>
-      <Sidebar userRole="admin" isDarkMode={isDarkMode} />
-
+      <Sidebar  isDarkMode={isDarkMode} />
       <div className="flex-1 overflow-y-auto">
-        {/* Header (A benzeri) */}
-        <div className={`h-24 px-8 py-5 border-b flex items-center justify-between ${
-          isDarkMode ? "border-gray-700" : "border-zinc-200"
-        }`}>
+        <div
+          className={`h-24 px-8 py-5 border-b flex items-center justify-between ${
+            isDarkMode ? "border-gray-700" : "border-zinc-200"
+          }`}
+        >
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
@@ -207,11 +180,12 @@ const CreateTicketPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-8 max-w-5xl">
           <form
             onSubmit={handleSubmit}
-            className={`rounded-lg border p-6 space-y-6 ${isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+            className={`rounded-lg border p-6 space-y-6 ${
+              isDarkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+            }`}
           >
             {errorMsg && (
               <div className={`p-3 rounded-lg text-sm ${isDarkMode ? "bg-red-900/30 text-red-200" : "bg-red-50 text-red-700"}`}>
@@ -219,7 +193,6 @@ const CreateTicketPage: React.FC = () => {
               </div>
             )}
 
-            {/* Title */}
             <div>
               <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? "text-gray-200" : "text-gray-800"}`}>
                 Title *
@@ -236,7 +209,6 @@ const CreateTicketPage: React.FC = () => {
               />
             </div>
 
-            {/* Project + Assignee */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? "text-gray-200" : "text-gray-800"}`}>
@@ -269,7 +241,6 @@ const CreateTicketPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Due Date + Priority */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               <div>
                 <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? "text-gray-200" : "text-gray-800"}`}>
@@ -293,7 +264,6 @@ const CreateTicketPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Description */}
             <div>
               <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? "text-gray-200" : "text-gray-800"}`}>
                 Description *
@@ -309,7 +279,6 @@ const CreateTicketPage: React.FC = () => {
               />
             </div>
 
-            {/* Actions */}
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
@@ -325,9 +294,7 @@ const CreateTicketPage: React.FC = () => {
                 type="submit"
                 disabled={!canSubmit}
                 className={`px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-                  !canSubmit
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-sky-600 text-white hover:bg-sky-700"
+                  !canSubmit ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-sky-600 text-white hover:bg-sky-700"
                 }`}
               >
                 {isSubmitting ? (

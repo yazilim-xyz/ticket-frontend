@@ -185,8 +185,7 @@ const UserStatisticsPage: React.FC = () => {
 
   return (
     <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-white"}`}>
-      <Sidebar userRole="admin" isDarkMode={isDarkMode} />
-
+<Sidebar  isDarkMode={isDarkMode} />
       {/* Figma canvas */}
       <div className="flex-1 overflow-auto">
         <div className="w-[1440px] h-[960px] relative bg-white">
