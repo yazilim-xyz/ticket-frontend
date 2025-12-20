@@ -9,7 +9,7 @@ const TicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const { isDarkMode, toggleTheme } = useTheme();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,20 +17,34 @@ const TicketDetailPage: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
-  const [editedDescription, setEditedDescription] = useState('');
+  const [solution, setSolution] = useState('');
+  const [isSavingSolution, setIsSavingSolution] = useState(false);
+  const handleSolutionSave = async () => {
+    if (!ticket) return;
+
+    try {
+      setIsSavingSolution(true);
+      await ticketService.updateTicket(ticket.id, { solution } as any);
+      const updated = await ticketService.getTicketById(ticket.id);
+      setTicket(updated);
+      setSolution((updated as any).solution ?? solution);
+    } finally {
+      setIsSavingSolution(false);
+    }
+  };
+
+
 
   useEffect(() => {
     const fetchTicket = async () => {
       if (!id) return;
-      
+
       try {
         setLoading(true);
         const data = await ticketService.getTicketById(id);
         setTicket(data);
         if (data) {
           setSelectedStatus(data.status);
-          setEditedDescription(data.description);
         }
       } catch (error) {
         console.error('Failed to fetch ticket:', error);
@@ -48,7 +62,7 @@ const TicketDetailPage: React.FC = () => {
     try {
       setIsUpdating(true);
       await ticketService.updateTicket(ticket.id, { status: selectedStatus as any });
-      
+
       // Refresh ticket data
       const updatedTicket = await ticketService.getTicketById(ticket.id);
       setTicket(updatedTicket);
@@ -59,25 +73,6 @@ const TicketDetailPage: React.FC = () => {
       setIsUpdating(false);
     }
   };
-
-  const handleDescriptionSave = async () => {
-    if (!ticket) return;
-
-    try {
-      await ticketService.updateTicket(ticket.id, { description: editedDescription });
-      const updatedTicket = await ticketService.getTicketById(ticket.id);
-      setTicket(updatedTicket);
-      setIsEditingDescription(false);
-    } catch (error) {
-      console.error('Failed to update description:', error);
-    }
-  };
-
-  const handleDescriptionCancel = () => {
-    setEditedDescription(ticket?.description || '');
-    setIsEditingDescription(false);
-  };
-
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -105,18 +100,18 @@ const TicketDetailPage: React.FC = () => {
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'short', 
-      day: 'numeric' 
+      month: 'short',
+      day: 'numeric'
     });
   };
 
   const formatDateTime = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'short', 
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -195,7 +190,7 @@ const TicketDetailPage: React.FC = () => {
   const FileIcon: React.FC<{ fileName: string; className?: string }> = ({ fileName, className = '' }) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
     const colorClass = getFileIconColor(fileName);
-    
+
     if (extension === 'pdf') {
       return (
         <svg className={`w-8 h-8 ${colorClass} ${className}`} fill="currentColor" viewBox="0 0 20 20">
@@ -203,7 +198,7 @@ const TicketDetailPage: React.FC = () => {
         </svg>
       );
     }
-    
+
     if (extension === 'doc' || extension === 'docx') {
       return (
         <svg className={`w-8 h-8 ${colorClass} ${className}`} fill="currentColor" viewBox="0 0 20 20">
@@ -211,7 +206,7 @@ const TicketDetailPage: React.FC = () => {
         </svg>
       );
     }
-    
+
     if (extension === 'xls' || extension === 'xlsx') {
       return (
         <svg className={`w-8 h-8 ${colorClass} ${className}`} fill="currentColor" viewBox="0 0 20 20">
@@ -219,7 +214,7 @@ const TicketDetailPage: React.FC = () => {
         </svg>
       );
     }
-    
+
     if (['jpg', 'jpeg', 'png', 'gif', 'svg'].includes(extension || '')) {
       return (
         <svg className={`w-8 h-8 ${colorClass} ${className}`} fill="currentColor" viewBox="0 0 20 20">
@@ -227,7 +222,7 @@ const TicketDetailPage: React.FC = () => {
         </svg>
       );
     }
-    
+
     if (['zip', 'rar', '7z', 'tar'].includes(extension || '')) {
       return (
         <svg className={`w-8 h-8 ${colorClass} ${className}`} fill="currentColor" viewBox="0 0 20 20">
@@ -236,7 +231,7 @@ const TicketDetailPage: React.FC = () => {
         </svg>
       );
     }
-    
+
     return (
       <svg className={`w-8 h-8 ${colorClass} ${className}`} fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
@@ -285,7 +280,7 @@ const TicketDetailPage: React.FC = () => {
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-      <Sidebar isDarkMode = {isDarkMode} />
+      <Sidebar isDarkMode={isDarkMode} />
 
       <div className="flex-1 overflow-y-auto">
         {/* Header */}
@@ -294,9 +289,8 @@ const TicketDetailPage: React.FC = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(-1)}
-              className={`p-2 rounded-lg transition-colors ${
-                isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
-              }`}
+              className={`p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                }`}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -321,11 +315,11 @@ const TicketDetailPage: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <button onClick={toggleTheme} className="relative w-14 h-7 rounded-full transition-colors duration-300 bg-cyan-500">
               <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isDarkMode ? 'translate-x-7' : 'translate-x-0'}`} />
             </button>
-            
+
             <div className="relative">
               <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-blue-400' : 'text-gray-800'}`} fill="currentColor" viewBox="0 0 20 20">
                 <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
@@ -398,65 +392,30 @@ const TicketDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Description - Editable */}
+              {/* Description - READONLY (Admin) */}
               <div className={`rounded-lg border p-6 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                     Description
                   </h3>
-                  {!isEditingDescription && (
-                    <button
-                      onClick={() => setIsEditingDescription(true)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  )}
                 </div>
-                
-                {isEditingDescription ? (
-                  <div className="space-y-3">
-                    <textarea
-                      value={editedDescription}
-                      onChange={(e) => setEditedDescription(e.target.value)}
-                      rows={6}
-                      className={`w-full px-4 py-3 rounded-lg border text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                        isDarkMode 
-                          ? 'bg-gray-700 border-gray-600 text-gray-200' 
-                          : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={handleDescriptionCancel}
-                        className={`px-4 py-2 rounded-lg border transition-colors ${
-                          isDarkMode 
-                            ? 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                            : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
-                        }`}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleDescriptionSave}
-                        className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white transition-colors"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {ticket.description}
-                  </p>
-                )}
+
+                <textarea
+                  value={ticket.description ?? ""}
+                  readOnly
+                  rows={6}
+                  className={`w-full px-4 py-3 rounded-lg border text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 ${isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-gray-200'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                />
+
+                <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Only admin can update this description.
+                </p>
               </div>
 
-              {/* Attachments */}
+               {/* Attachments */}
               <div className={`rounded-lg border p-5 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -467,21 +426,20 @@ const TicketDetailPage: React.FC = () => {
                       Attachments
                     </h3>
                   </div>
-                  
+
                   <button
                     onClick={handleAttachmentClick}
-                    className={`px-1.5 rounded-lg border transition-colors flex items-center gap-2 ${
-                      isDarkMode 
-                        ? 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                    className={`px-1.5 rounded-lg border transition-colors flex items-center gap-2 ${isDarkMode
+                        ? 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300'
                         : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
-                    }`}
+                      }`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     <span className="text-sm font-medium">Add File</span>
                   </button>
-                  
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -500,9 +458,8 @@ const TicketDetailPage: React.FC = () => {
                     {attachments.map((file, index) => (
                       <div
                         key={index}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${
-                          isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
-                        }`}
+                        className={`flex items-center justify-between p-3 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+                          }`}
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <FileIcon fileName={file.name} />
@@ -517,11 +474,10 @@ const TicketDetailPage: React.FC = () => {
                         </div>
                         <button
                           onClick={() => handleRemoveAttachment(index)}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            isDarkMode 
-                              ? 'hover:bg-gray-600 text-gray-400 hover:text-red-400' 
+                          className={`p-1.5 rounded-lg transition-colors ${isDarkMode
+                              ? 'hover:bg-gray-600 text-gray-400 hover:text-red-400'
                               : 'hover:bg-gray-200 text-gray-500 hover:text-red-600'
-                          }`}
+                            }`}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -532,6 +488,39 @@ const TicketDetailPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Solution - USER EDITABLE */}
+              <div className={`rounded-lg border p-6 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    Solution
+                  </h3>
+                </div>
+
+                <textarea
+                  value={solution}
+                  onChange={(e) => setSolution(e.target.value)}
+                  rows={6}
+                  placeholder="Write your solution here..."
+                  className={`w-full px-4 py-3 rounded-lg border text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 ${isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    }`}
+                />
+
+                <div className="flex gap-2 justify-end mt-3">
+                  <button
+                    onClick={handleSolutionSave}
+                    className={`px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white transition-colors ${isSavingSolution ? "opacity-70 cursor-not-allowed" : ""
+                      }`}
+                    disabled={isSavingSolution}
+                  >
+                    {isSavingSolution ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+
+
             </div>
 
             {/* Right Column - Status & Assignment (1/3) */}
@@ -550,11 +539,10 @@ const TicketDetailPage: React.FC = () => {
                     </label>
                     <button
                       onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                      className={`w-full px-4 py-3 rounded-lg border text-left flex items-center justify-between transition-colors ${
-                        isDarkMode 
-                          ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600' 
-                          : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400'
-                      }`}
+                      className={`w-full px-4 py-3 rounded-lg border text-left flex items-center justify-between transition-colors ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600'
+                        : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400'
+                        }`}
                     >
                       <span className="text-sm font-medium">
                         {getStatusText(selectedStatus)}
@@ -565,9 +553,8 @@ const TicketDetailPage: React.FC = () => {
                     </button>
 
                     {showStatusDropdown && (
-                      <div className={`absolute z-10 mt-2 w-full rounded-lg border shadow-lg ${
-                        isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'
-                      }`}>
+                      <div className={`absolute z-10 mt-2 w-full rounded-lg border shadow-lg ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'
+                        }`}>
                         {statusOptions.map((option) => (
                           <button
                             key={option.value}
@@ -575,13 +562,12 @@ const TicketDetailPage: React.FC = () => {
                               setSelectedStatus(option.value);
                               setShowStatusDropdown(false);
                             }}
-                            className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
-                              selectedStatus === option.value
-                                ? 'bg-cyan-50 text-cyan-700'
-                                : isDarkMode
-                                  ? 'text-gray-200 hover:bg-gray-600'
-                                  : 'text-gray-900 hover:bg-gray-50'
-                            } first:rounded-t-lg last:rounded-b-lg`}
+                            className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${selectedStatus === option.value
+                              ? 'bg-cyan-50 text-cyan-700'
+                              : isDarkMode
+                                ? 'text-gray-200 hover:bg-gray-600'
+                                : 'text-gray-900 hover:bg-gray-50'
+                              } first:rounded-t-lg last:rounded-b-lg`}
                           >
                             {option.label}
                           </button>
@@ -594,11 +580,10 @@ const TicketDetailPage: React.FC = () => {
                   <button
                     onClick={handleStatusUpdate}
                     disabled={isUpdating || selectedStatus === ticket.status}
-                    className={`w-full px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                      isUpdating || selectedStatus === ticket.status
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-cyan-600 text-white hover:bg-cyan-700'
-                    }`}
+                    className={`w-full px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${isUpdating || selectedStatus === ticket.status
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-cyan-600 text-white hover:bg-cyan-700'
+                      }`}
                   >
                     {isUpdating ? (
                       <>
