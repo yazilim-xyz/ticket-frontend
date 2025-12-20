@@ -265,7 +265,7 @@ class TicketService {
       description: 'Add real-time notifications via Socket.io',
       project: 'PulseWave',
       priority: 'high',
-      status: 'cancelled',
+      status: 'blocked',
       assignedTo: 'user_2',
       createdBy: 'admin_1',
       createdAt: '2025-12-03T11:00:00Z',

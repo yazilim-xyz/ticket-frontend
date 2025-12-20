@@ -8,6 +8,7 @@ import {
   TeamActivityData,
   OverdueTicket,
 } from '../types';
+import { RecentTicket } from '../components/admin/RecentTicketsWidget';
 
 // 1. ADMIN STATS HOOK
 export const useAdminDashboardStats = () => {
@@ -212,4 +213,31 @@ export const useOverdueTickets = () => {
   }, [fetchOverdueTickets]);
 
   return { overdueTickets, loading, error, refetch: fetchOverdueTickets };
+};
+
+// 8. RECENT TICKETS HOOK
+export const useRecentTickets = () => {
+  const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRecentTickets = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminDashboardService.getRecentTickets();
+      setRecentTickets(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch recent tickets');
+      console.error('Error fetching recent tickets:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRecentTickets();
+  }, [fetchRecentTickets]);
+
+  return { recentTickets, loading, error, refetch: fetchRecentTickets };
 };

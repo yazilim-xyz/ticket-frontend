@@ -1,24 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/layouts/Sidebar";
 import { useTheme } from "../context/ThemeContext";
 import { ticketService } from "../services/ticketService";
 import { Ticket } from "../types";
-import {
-  ArrowLeft,
-  Filter,
-  PieChart,
-  BarChart3,
-  ChevronDown,
-  X,
-  Clock,
-  AlertTriangle,
-  TrendingUp,
-  Users,
-  Loader2,
-  Calendar,
-  CheckCircle2
-} from "lucide-react";
 
 type ChartType = "pie" | "bar";
 
@@ -53,18 +37,7 @@ const normalizeStatus = (t: Ticket) => {
   return raw || "new";
 };
 
-const hoursBetween = (aIso?: string, bIso?: string) => {
-  if (!aIso || !bIso) return null;
-  const a = new Date(aIso).getTime();
-  const b = new Date(bIso).getTime();
-  if (Number.isNaN(a) || Number.isNaN(b)) return null;
-  const diff = b - a;
-  if (diff <= 0) return null;
-  return diff / (1000 * 60 * 60);
-};
-
 const PerformancePage: React.FC = () => {
-  const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
 
   const [selectedChart, setSelectedChart] = useState<ChartType>("pie");
@@ -153,23 +126,11 @@ const PerformancePage: React.FC = () => {
     }).length;
   }, [filteredTickets]);
 
-  const avgResolutionHours = useMemo(() => {
-    const hrs: number[] = [];
-    for (const t of filteredTickets) {
-      const st = normalizeStatus(t);
-      if (st !== "done") continue;
-      const h = hoursBetween((t as any).createdAt, (t as any).updatedAt);
-      if (h != null) hrs.push(h);
-    }
-    if (hrs.length === 0) return 0;
-    return hrs.reduce((a, b) => a + b, 0) / hrs.length;
-  }, [filteredTickets]);
-
   const total = buckets.notStarted + buckets.inProgress + buckets.done + buckets.deleted;
 
   const chartOptions = [
-    { id: "pie" as ChartType, label: "Pie Chart", icon: PieChart },
-    { id: "bar" as ChartType, label: "Bar Chart", icon: BarChart3 },
+    { id: "pie" as ChartType, label: "Pie Chart"},
+    { id: "bar" as ChartType, label: "Bar Chart"},
   ];
 
   // Pie Chart Component
@@ -180,10 +141,10 @@ const PerformancePage: React.FC = () => {
     const c = pct(buckets.done);
 
     const bg = `conic-gradient(
-      #0891b2 0% ${a}%,
-      #f97316 ${a}% ${a + b}%,
-      #16a34a ${a + b}% ${a + b + c}%,
-      #dc2626 ${a + b + c}% 100%
+      #6D28D9 0% ${a}%,
+      #06B6D4 ${a}% ${a + b}%,
+      #14B8A6 ${a + b}% ${a + b + c}%,
+      #BE185D ${a + b + c}%
     )`;
 
     return (
@@ -204,10 +165,10 @@ const PerformancePage: React.FC = () => {
 
         <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-2">
           {[
-            { label: "Not Started", value: buckets.notStarted, color: "bg-cyan-600" },
-            { label: "In Progress", value: buckets.inProgress, color: "bg-orange-500" },
-            { label: "Done", value: buckets.done, color: "bg-green-600" },
-            { label: "Deleted", value: buckets.deleted, color: "bg-red-600" },
+            { label: "Not Started", value: buckets.notStarted, color: "bg-violet-700" },
+            { label: "In Progress", value: buckets.inProgress, color: "bg-cyan-500" },
+            { label: "Done", value: buckets.done, color: "bg-teal-500" },
+            { label: "Deleted", value: buckets.deleted, color: "bg-pink-700" },
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-sm ${item.color}`} />
@@ -227,10 +188,10 @@ const PerformancePage: React.FC = () => {
     const heightPx = (v: number) => Math.max((v / max) * 160, 8); // 160px max height, 8px minimum
 
     const bars = [
-      { label: "Not Started", value: buckets.notStarted, color: "#0891b2" }, // cyan-600
-      { label: "In Progress", value: buckets.inProgress, color: "#f97316" }, // orange-500
-      { label: "Done", value: buckets.done, color: "#16a34a" }, // green-600
-      { label: "Deleted", value: buckets.deleted, color: "#dc2626" }, // red-600
+      { label: "Not Started", value: buckets.notStarted, color: "#6D28D9" }, // violet-700
+      { label: "In Progress", value: buckets.inProgress, color: "#06B6D4" }, // cyan-500
+      { label: "Done", value: buckets.done, color: "#14B8A6" }, // teal-500
+      { label: "Deleted", value: buckets.deleted, color: "#BE185D" }, // pink-700
     ];
 
     return (
@@ -267,13 +228,10 @@ const PerformancePage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-        <Sidebar isDarkMode={isDarkMode} />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="w-12 h-12 text-teal-600 animate-spin mx-auto" />
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
             <p className={`mt-4 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>Loading performance data...</p>
-          </div>
         </div>
       </div>
     );
@@ -283,30 +241,14 @@ const PerformancePage: React.FC = () => {
     <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-300`}>
       <Sidebar isDarkMode={isDarkMode} />
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate(-1)}
-                className={`p-2 rounded-xl transition-all ${
-                  isDarkMode
-                    ? 'hover:bg-gray-800 text-gray-400 hover:text-gray-200'
-                    : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <div>
-                <h1 className={`text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3`}>
-                  Performance Overview
-                </h1>
-                <p className={`mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  Track team productivity and ticket metrics
-                </p>
-              </div>
-            </div>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className={`px-8 py-6 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center justify-between">
+            <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
+              Performance Overview
+            </h1>
 
             {/* Dark Mode Toggle */}
             <div className="flex items-center gap-2">
@@ -341,244 +283,265 @@ const PerformancePage: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
 
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto px-8 py-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            {[
-              { label: "Total Tickets", value: total, icon: TrendingUp, color: "teal", bg: isDarkMode ? "bg-teal-900/20" : "bg-teal-50" },
-              { label: "Avg Resolution", value: `${avgResolutionHours.toFixed(1)}h`, icon: Clock, color: "blue", bg: isDarkMode ? "bg-blue-900/20" : "bg-blue-50" },
-              { label: "Overdue", value: overdueCount, icon: AlertTriangle, color: "red", bg: isDarkMode ? "bg-red-900/20" : "bg-red-50" },
-              { label: "Completed", value: buckets.done, icon: CheckCircle2, color: "green", bg: isDarkMode ? "bg-green-900/20" : "bg-green-50" },
-            ].map((stat) => {
-              const Icon = stat.icon;
-              const colorClasses: Record<string, string> = {
-                teal: isDarkMode ? "text-teal-400" : "text-teal-600",
-                blue: isDarkMode ? "text-blue-400" : "text-blue-600",
-                red: isDarkMode ? "text-red-400" : "text-red-600",
-                green: isDarkMode ? "text-green-400" : "text-green-600",
-              };
-              return (
-                <div key={stat.label} className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-5 shadow-sm`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                      <Icon className={`w-6 h-6 ${colorClasses[stat.color]}`} />
-                    </div>
-                    <div>
-                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</p>
-                      <p className={`text-2xl font-semibold ${colorClasses[stat.color]}`}>{stat.value}</p>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-3 gap-6 mb-8">
+            {/* Total Tickets */}
+            <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {total}
+                  </h3>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Total Tickets
+                  </p>
                 </div>
-              );
-            })}
-          </div>
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-teal-900/30' : 'bg-teal-100'}`}>
+                  <svg className={`w-6 h-6 ${isDarkMode ? 'text-teal-400' : 'text-teal-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+              </div>
+            </div>
 
-          {/* Filters & Chart Selection */}
-          <div className="flex flex-wrap items-center gap-3 mb-6">
-            {/* Filter Button */}
-            <div className="relative" ref={filterRef}>
-              <button
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
-                  isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-gray-200 hover:border-teal-500'
-                    : 'bg-white border-gray-200 text-gray-700 hover:border-teal-500'
-                } ${(selectedPerson !== "all" || selectedDate) ? (isDarkMode ? 'border-teal-500' : 'border-teal-500') : ''}`}
-              >
-                <Filter className="w-4 h-4" />
-                <span className="font-medium">Filters</span>
-                {(selectedPerson !== "all" || selectedDate) && (
-                  <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-teal-500 text-white">
-                    {(selectedPerson !== "all" ? 1 : 0) + (selectedDate ? 1 : 0)}
-                  </span>
-                )}
-                <ChevronDown className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
-              </button>
+            {/* Overdue */}
+            <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {overdueCount}
+                  </h3>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Overdue
+                  </p>
+                </div>
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-red-900/30' : 'bg-red-100'}`}>
+                  <svg className={`w-6 h-6 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
 
-              {isFilterOpen && (
-                <div className={`absolute left-0 top-full mt-2 w-80 rounded-2xl shadow-xl z-20 overflow-hidden ${
-                  isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                }`}>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className={`font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Filters</h4>
-                      <button
-                        onClick={() => {
-                          setSelectedPerson("all");
-                          setSelectedDate("");
-                        }}
-                        className="text-sm text-teal-500 hover:text-teal-600"
-                      >
-                        Clear all
-                      </button>
-                    </div>
+            {/* Completed */}
+            <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {buckets.done}
+                  </h3>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Completed
+                  </p>
+                </div>
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-green-900/30' : 'bg-green-100'}`}>
+                  <svg className={`w-6 h-6 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>     
+          
+          {/* Chart Card */}
+          <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl shadow-sm overflow-hidden`}>
+            <div className={`px-12 py-4  border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center justify-between`}>
+              {/* Left: Title */}
+              <div>
+                <h3 className={`text-lg font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                  Ticket Distribution
+                </h3>
+                <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  {filteredTickets.length} tickets {selectedPerson !== "all" || selectedDate ? "(filtered)" : ""}
+                </p>
+              </div>  
+          
+              {/* Right: Filter and Chart Controls */}
+              <div className="flex items-center gap-10">
+                {/* Filter Button */}
+                <div className="relative" ref={filterRef}>
+                  <button
+                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                    className={`flex items-center gap-4 px-4 py-2 rounded-lg border transition-colors ${
+                      isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-gray-200 hover:border-teal-500'
+                        : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-teal-500'
+                    } ${(selectedPerson !== "all" || selectedDate) ? 'border-teal-500' : ''}`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    <span className="text-sm font-medium">Filter</span>
+                    {(selectedPerson !== "all" || selectedDate) && (
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-teal-500 text-white">
+                        {(selectedPerson !== "all" ? 1 : 0) + (selectedDate ? 1 : 0)}
+                      </span>
+                    )}
+                  </button>
 
-                    {/* Person Filter */}
-                    <div className="mb-4">
-                      <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        <Users className="w-3 h-3" />
-                        Person
-                      </label>
-                      <div className={`max-h-36 overflow-auto rounded-xl border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                        {peopleOptions.map((p) => (
+                  {isFilterOpen && (
+                    <div className={`absolute left-0 top-full mt-2 w-80 rounded-xl shadow-xl z-20 overflow-hidden ${
+                      isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                    }`}>
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className={`font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Filters</h4>
                           <button
-                            key={p}
-                            onClick={() => setSelectedPerson(p)}
-                            className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
-                              selectedPerson === p
-                                ? isDarkMode ? 'bg-teal-600/20 text-teal-400' : 'bg-teal-50 text-teal-700'
+                            onClick={() => {
+                              setSelectedPerson("all");
+                              setSelectedDate("");
+                            }}
+                            className="text-sm text-teal-500 hover:text-teal-600"
+                          >
+                            Clear all
+                          </button>
+                        </div>
+
+                        {/* Person Filter */}
+                        <div className="mb-4">
+                          <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            Person
+                          </label>
+                          <div className={`max-h-36 overflow-auto rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                            {peopleOptions.map((p) => (
+                              <button
+                                key={p}
+                                onClick={() => setSelectedPerson(p)}
+                                className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                                  selectedPerson === p
+                                    ? isDarkMode ? 'bg-teal-600/20 text-teal-400' : 'bg-teal-50 text-teal-700'
+                                    : isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
+                                }`}
+                              >
+                                {p === "all" ? "All People" : p}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Date Filter */}
+                        <div className="mb-4">
+                          <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Date (from)
+                          </label>
+                          <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className={`w-full px-3 py-2 rounded-lg border transition-all ${
+                              isDarkMode
+                                ? 'bg-gray-700 border-gray-600 text-gray-200 focus:border-teal-500'
+                                : 'bg-gray-50 border-gray-200 text-gray-800 focus:border-teal-500'
+                            } focus:outline-none focus:ring-2 focus:ring-teal-500`}
+                          />
+                        </div>
+
+                        <button
+                          onClick={() => setIsFilterOpen(false)}
+                          className="w-full py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium transition-colors"
+                        >
+                          Apply Filters
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chart Type Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsChartDropdownOpen(!isChartDropdownOpen)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                      isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-gray-200 hover:border-teal-500'
+                        : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-teal-500'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {selectedChart === "pie" ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      )}
+                    </svg>
+                    <span className="text-sm font-medium">
+                      {chartOptions.find(o => o.id === selectedChart)?.label}
+                    </span>
+                    <svg className={`w-4 h-4 transition-transform ${isChartDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isChartDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsChartDropdownOpen(false)} />
+                      <div className={`absolute right-0 mt-2 w-44 rounded-lg shadow-lg z-20 overflow-hidden ${
+                        isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                      }`}>
+                        {chartOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            onClick={() => {
+                              setSelectedChart(option.id);
+                              setIsChartDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
+                              selectedChart === option.id
+                                ? isDarkMode ? 'bg-teal-600/20 text-teal-400' : 'bg-teal-50 text-teal-600'
                                 : isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
                             }`}
                           >
-                            {p === "all" ? "All People" : p}
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {option.id === "pie" ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                              ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                              )}
+                            </svg>
+                            <span className="font-medium text-sm">{option.label}</span>
+                            {selectedChart === option.id && (
+                              <div className="ml-auto w-2 h-2 rounded-full bg-teal-500" />
+                            )}
                           </button>
                         ))}
                       </div>
-                    </div>
-
-                    {/* Date Filter */}
-                    <div className="mb-4">
-                      <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        <Calendar className="w-3 h-3" />
-                        Date (from)
-                      </label>
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className={`w-full px-3 py-2.5 rounded-xl border-2 transition-all ${
-                          isDarkMode
-                            ? 'bg-gray-700/50 border-gray-600 text-gray-200 focus:border-teal-500'
-                            : 'bg-gray-50 border-gray-200 text-gray-800 focus:border-teal-500'
-                        } focus:outline-none`}
-                      />
-                    </div>
-
-                    <button
-                      onClick={() => setIsFilterOpen(false)}
-                      className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-medium transition-colors"
-                    >
-                      Apply Filters
-                    </button>
-                  </div>
+                    </>
+                  )}
                 </div>
-              )}
-            </div>
-
-            {/* Active Filters Display */}
-            {(selectedPerson !== "all" || selectedDate) && (
-              <div className="flex items-center gap-2">
-                {selectedPerson !== "all" && (
-                  <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm ${
-                    isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {selectedPerson}
-                    <button onClick={() => setSelectedPerson("all")} className="ml-1 hover:text-red-500">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
-                {selectedDate && (
-                  <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm ${
-                    isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    From: {selectedDate}
-                    <button onClick={() => setSelectedDate("")} className="ml-1 hover:text-red-500">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                )}
               </div>
-            )}
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Chart Type Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setIsChartDropdownOpen(!isChartDropdownOpen)}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all ${
-                  isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-gray-200 hover:border-teal-500'
-                    : 'bg-white border-gray-200 text-gray-700 hover:border-teal-500'
-                }`}
-              >
-                {selectedChart === "pie" ? (
-                  <PieChart className="w-4 h-4" />
-                ) : (
-                  <BarChart3 className="w-4 h-4" />
-                )}
-                <span className="font-medium">
-                  {chartOptions.find(o => o.id === selectedChart)?.label}
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isChartDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isChartDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsChartDropdownOpen(false)} />
-                  <div className={`absolute right-0 mt-2 w-44 rounded-xl shadow-lg z-20 overflow-hidden ${
-                    isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                  }`}>
-                    {chartOptions.map((option) => {
-                      const Icon = option.icon;
-                      return (
-                        <button
-                          key={option.id}
-                          onClick={() => {
-                            setSelectedChart(option.id);
-                            setIsChartDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
-                            selectedChart === option.id
-                              ? isDarkMode ? 'bg-teal-600/20 text-teal-400' : 'bg-teal-50 text-teal-600'
-                              : isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span className="font-medium">{option.label}</span>
-                          {selectedChart === option.id && (
-                            <div className="ml-auto w-2 h-2 rounded-full bg-teal-500" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Chart Card */}
-          <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl shadow-sm overflow-hidden`}>
-            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-                Ticket Distribution
-              </h3>
-              <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                {filteredTickets.length} tickets {selectedPerson !== "all" || selectedDate ? "(filtered)" : ""}
-              </p>
             </div>
 
-            <div className="h-80 p-6">
-              {selectedChart === "pie" ? <PieChartVisual /> : <BarChartVisual />}
-            </div>
+            {/* Chart Card */}
+            <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl shadow-sm overflow-hidden`}>
+              <div className="h-80 p-6">
+                {selectedChart === "pie" ? <PieChartVisual /> : <BarChartVisual />}
+              </div>
 
-            {/* Summary Stats */}
-            <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className="grid grid-cols-4 gap-4">
-                {[
-                  { label: "Not Started", value: buckets.notStarted, color: "text-cyan-500", bg: isDarkMode ? "bg-cyan-900/20" : "bg-cyan-50" },
-                  { label: "In Progress", value: buckets.inProgress, color: "text-orange-500", bg: isDarkMode ? "bg-orange-900/20" : "bg-orange-50" },
-                  { label: "Done", value: buckets.done, color: "text-green-500", bg: isDarkMode ? "bg-green-900/20" : "bg-green-50" },
-                  { label: "Deleted", value: buckets.deleted, color: "text-red-500", bg: isDarkMode ? "bg-red-900/20" : "bg-red-50" },
-                ].map((stat) => (
-                  <div key={stat.label} className={`${stat.bg} rounded-xl p-4 text-center`}>
-                    <p className={`text-2xl  ${stat.color}`}>{stat.value}</p>
-                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</p>
-                  </div>
-                ))}
+              {/* Summary Stats */}
+              <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="grid grid-cols-4 gap-4">
+                  {[
+                    { label: "Not Started", value: buckets.notStarted, color: "text-violet-700", bg: isDarkMode ? "bg-violet-900/20" : "bg-violet-50" },
+                    { label: "In Progress", value: buckets.inProgress, color: "text-cyan-500", bg: isDarkMode ? "bg-cyan-900/20" : "bg-cyan-50" },
+                    { label: "Done", value: buckets.done, color: "text-teal-500", bg: isDarkMode ? "bg-teal-900/20" : "bg-teal-50" },
+                    { label: "Deleted", value: buckets.deleted, color: "text-pink-700", bg: isDarkMode ? "bg-pink-900/20" : "bg-pink-50" },
+                  ].map((stat) => (
+                    <div key={stat.label} className={`${stat.bg} rounded-xl p-4 text-center`}>
+                      <p className={`text-2xl  ${stat.color}`}>{stat.value}</p>
+                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

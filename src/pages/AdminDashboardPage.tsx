@@ -3,7 +3,7 @@ import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
 import StatCard from '../components/dashboard/StatCard';
 import AgentLeaderboard from '../components/admin/AgentLeaderboard';
-import DepartmentPerformance from '../components/admin/DepartmentPerformance';
+import RecentTicketsWidget from '../components/admin/RecentTicketsWidget';
 import TicketDistributionChart from '../components/admin/TicketDistributionChart';
 import TeamActivityTrend from '../components/admin/TeamActivityTrend';
 import TeamChat from '../components/dashboard/TeamChat'; 
@@ -14,9 +14,9 @@ import { useOverdueTickets } from '../hooks/useAdminDashboard';
 import {
   useAdminDashboardStats,
   useAgentPerformance,
-  useDepartmentStats,
   useTicketDistribution,
   useTeamActivityTrend,
+  useRecentTickets,
 } from '../hooks/useAdminDashboard';
 
 const AdminDashboardPage: React.FC = () => {
@@ -26,7 +26,7 @@ const AdminDashboardPage: React.FC = () => {
   // Fetch all admin dashboard data
   const { stats, loading: statsLoading, error: statsError } = useAdminDashboardStats();
   const { agents, loading: agentsLoading } = useAgentPerformance();
-  const { departments, loading: departmentsLoading } = useDepartmentStats();
+  const { recentTickets, loading: recentTicketsLoading } = useRecentTickets();
   const { distribution, loading: distributionLoading } = useTicketDistribution();
   const { activityData, loading: activityLoading } = useTeamActivityTrend(activityPeriod);
   const { messages, sendMessage, loading: chatLoading, sending } = useChatMessages();
@@ -146,7 +146,7 @@ const AdminDashboardPage: React.FC = () => {
           </div>
 
           {/* Page Title */}
-          <h1 className="text-cyan-800 text-2xl font-semibold font-semibold leading-9 mb-3">
+          <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
             Admin Dashboard
           </h1>
 
@@ -164,6 +164,7 @@ const AdminDashboardPage: React.FC = () => {
         <div className="px-8 py-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* CARD 1: Total Team Tickets - Sistemdeki tüm ticketların toplamı */}
             <StatCard
               title="Total Team Tickets"
               value={stats?.totalTeamTickets ?? 0}
@@ -179,21 +180,23 @@ const AdminDashboardPage: React.FC = () => {
               }
             />
 
+            {/* CARD 2: Total Users - Sistemdeki toplam kullanıcı sayısı (login status takibi yok) */}
             <StatCard
-              title="Active Agents"
-              value={stats?.activeAgents ?? 0}
-              change={stats?.activeAgentsChange ?? '+0'}
+              title="Total Users"
+              value={stats?.totalUsers ?? 0}
+              change={stats?.totalUsersChange ?? '+0'}
               changeType="positive"
               iconColor="text-white"
               iconBgColor="bg-emerald-600"
               isDarkMode={isDarkMode}
               icon={
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               }
             />
 
+            {/* CARD 3: Resolved This Week - Bu hafta içinde (son 7 gün) çözülen ticket sayısı */}
             <StatCard
               title="Resolved This Week"
               value={stats?.resolvedThisWeek ?? 0}
@@ -209,17 +212,18 @@ const AdminDashboardPage: React.FC = () => {
               }
             />
 
+            {/* CARD 4: Total Open Tickets - Açık durumda olan (new, in_progress, blocked) ticketların toplamı */}
             <StatCard
-              title="Avg Team Resolution Time"
-              value={stats?.avgTeamResolutionTime ?? '0h'}
-              change={stats?.avgTeamResolutionTimeChange ?? '0%'}
-              changeType={stats?.avgTeamResolutionTimeChange?.startsWith('-') ? 'positive' : 'negative'}
-              iconColor="text-white"
+              title="Total Open Tickets"
+              value={stats?.totalOpenTickets ?? 0}
+              change={stats?.totalOpenTicketsChange ?? '+0%'}
+              changeType={stats?.totalOpenTicketsChange?.startsWith('+') ? 'positive' : 'negative'}
+              iconColor="text-white"    
               iconBgColor="bg-purple-600"
               isDarkMode={isDarkMode}
               icon={
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               }
             />
@@ -235,15 +239,17 @@ const AdminDashboardPage: React.FC = () => {
                 loading={activityLoading}
                 onPeriodChange={handleActivityPeriodChange}
               />
-              <DepartmentPerformance
-                isDarkMode={isDarkMode}
-                departments={departments}
-                loading={departmentsLoading}
-              />
               <AgentLeaderboard
                 isDarkMode={isDarkMode}
                 agents={agents}
                 loading={agentsLoading}
+              />
+              <TeamChat
+                isDarkMode={isDarkMode}
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                loading={chatLoading}
+                sending={sending}
               />
             </div>
 
@@ -254,17 +260,15 @@ const AdminDashboardPage: React.FC = () => {
                 distribution={distribution}
                 loading={distributionLoading}
               />
+              <RecentTicketsWidget
+                isDarkMode={isDarkMode}
+                tickets={recentTickets}
+                loading={recentTicketsLoading}
+              />
               <OverdueTicketsWidget
                 isDarkMode={isDarkMode}
                 tickets={overdueTickets}
                 loading={overdueLoading}
-              />
-              <TeamChat
-                isDarkMode={isDarkMode}
-                messages={messages}
-                onSendMessage={handleSendMessage}
-                loading={chatLoading}
-                sending={sending}
               />
             </div>
           </div>

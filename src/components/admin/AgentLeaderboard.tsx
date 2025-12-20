@@ -43,13 +43,13 @@ const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({
 
   return (
     <div className={`
-      rounded-lg border h-[515px] flex flex-col
+      rounded-lg border h-[550px] flex flex-col
       ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
     `}>
       {/* Header */}
       <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex items-center justify-between`}>
         <div>
-          <h3 className={`text-lg font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             Top Performers
           </h3>
           <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -59,7 +59,7 @@ const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({
       </div>
 
       {/* Agents List */}
-      <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto">
+      <div className="p-6 space-y-4 max-h-[450px] overflow-y-auto">
         {agents.length === 0 ? (
           <div className="text-center py-8">
             <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -83,7 +83,7 @@ const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({
                     ? 'text-gray-400' 
                     : index === 2 
                     ? 'text-amber-600'
-                    : isDarkMode ? 'text-coolGray-600' : 'text-gray-400'
+                    : isDarkMode ? 'text-coolGray-800' : 'text-gray-500'
                 }`}>
                   {index + 1}
                 </span>
@@ -91,7 +91,7 @@ const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({
 
               {/* Avatar with Status */}
               <div className="relative flex-shrink-0">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br bg-cyan-600 flex items-center justify-center text-white font-semibold text-sm">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br bg-cyan-600 flex items-center justify-center text-white font-semibold text-sm">
                   {agent.avatar}
                 </div>
                 <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 ${
@@ -100,7 +100,7 @@ const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({
               </div>
 
               {/* Agent Info */}
-              <div className="flex-1 min-w-[180px]">
+              <div className="flex-1 min-w-[120px]">
                 <h4 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {agent.name}
                 </h4>
@@ -118,16 +118,6 @@ const AgentLeaderboard: React.FC<AgentLeaderboardProps> = ({
                   </p>
                   <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Solved
-                  </p>
-                </div>
-
-                {/* Avg Time */}
-                <div className="text-center min-w-[50px]">
-                  <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {agent.avgResolutionTime}
-                  </p>
-                  <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Avg Time
                   </p>
                 </div>
 

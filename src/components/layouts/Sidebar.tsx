@@ -34,9 +34,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
       )
     },
     {
-      id: 'admin-panel',
-      label: 'Admin Panel',
-      path: '/admin-panel',
+      id: 'user-management',
+      label: 'User Control',
+      path: '/user-management',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -129,7 +129,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
       )
     },
     {
-     id: 'settings',
+      id: 'activity-log',
+      label: 'Activity Log',
+      path: '/activity-log',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      ),
+      adminOnly: true
+    },
+    {
+      id: 'settings',
       label: 'Settings',
       path: '/settings',
       icon: (
@@ -211,9 +222,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
             <img 
               src={logo} 
               alt="Enterprise Ticket System Logo" 
-              className="w-24 h-24 mb-3"
+              className="w-20 h-20 mb-3"
             />
-            <h2 className={`text-2xl font-semibold font-semibold leading-7 text-center ${
+            <h2 className={`text-2xl font-[Inter] leading-7 text-center ${
               isDarkMode ? 'text-teal-600' : 'text-cyan-800'
             }`}>
               Enterprise<br/>Ticket System
@@ -230,7 +241,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
       </div>
 
       {/* Divider */}
-      <div className={`w-full h-px mb-6 ${isDarkMode ? 'bg-gray-500' : 'bg-zinc-300'}`} />
+      <div className={`w-full h-px mb-4 ${isDarkMode ? 'bg-gray-500' : 'bg-zinc-300'}`} />
 
       {/* Menu Items */}
       <nav className="flex-1 px-5 overflow-y-auto">
@@ -255,7 +266,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
               
               {!isCollapsed && (
                 <>
-                  <span className="flex-1 text-left text-base font-semibold font-semibold leading-6">
+                  <span className="flex-1 text-left text-base font-[Inter] leading-6">
                     {item.label}
                   </span>
                   <svg 

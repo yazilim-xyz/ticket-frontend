@@ -32,12 +32,12 @@ const TicketDistributionChart: React.FC<TicketDistributionChartProps> = ({
 
   return (
     <div className={`
-      rounded-lg border
+      rounded-lg border flex flex-col h-[470px]
       ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
     `}>
       {/* Header */}
-      <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'}`}>
-        <h3 className={`text-lg font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+      <div className={`px-6 py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'}`}>
+        <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           Ticket Distribution
         </h3>
         <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>

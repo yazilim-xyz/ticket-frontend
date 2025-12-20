@@ -50,7 +50,7 @@ const OverdueTicketsWidget: React.FC<OverdueTicketsWidgetProps> = ({
 
   return (
     <div className={`
-      rounded-lg border h-[485px] flex flex-col
+      rounded-lg border h-[550px] flex flex-col
       ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-zinc-200'}
     `}>
       {/* Header */}
@@ -62,7 +62,7 @@ const OverdueTicketsWidget: React.FC<OverdueTicketsWidgetProps> = ({
             </svg>
           </div>
           <div>
-            <h3 className={`text-lg font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Overdue Tickets
             </h3>
             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -96,16 +96,16 @@ const OverdueTicketsWidget: React.FC<OverdueTicketsWidgetProps> = ({
           tickets.map((ticket) => (
             <div
               key={ticket.id}
-              className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+              className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
                 isDarkMode 
                   ? 'bg-gray-700 border-gray-600 hover:border-red-500' 
                   : 'bg-white border-gray-200 hover:border-red-400'
               }`}
             >
               {/* Ticket Header */}
-              <div className="flex items-start justify-between mb-2">
+              <div className="flex items-start justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm font-bold ${isDarkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                  <span className={`text-sm font-semibold ${isDarkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
                     {ticket.ticketId}
                   </span>
                   <span className={`text-xs px-2 py-0.5 rounded border font-medium ${getPriorityColor(ticket.priority)}`}>

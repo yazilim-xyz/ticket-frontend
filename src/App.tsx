@@ -10,7 +10,7 @@ import PasswordResetPage from './pages/PasswordResetPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import AdminPanelPage from './pages/AdminPanelPage';
+import UserManagementPage from './pages/UserManagementPage';
 import ActiveTicketsPage from './pages/ActiveTicketsPage';
 import AllTicketsPage from './pages/AllTicketsPage';
 import TicketDetailPage from './pages/TicketDetailPage';
@@ -20,11 +20,13 @@ import CalendarPage from './pages/CalendarPage';
 import AiChatBotPage from './pages/AiChatBotPage';
 import ChatPage from './pages/ChatPage';
 import PerformancePage from './pages/PerformancePage';
-import UserStatisticsPage from './pages/StatisticsPage';
+import UserStatisticsPage from './pages/UserStatisticsPage';
+import ActivityLogPage from './pages/ActivityLogPage';
 import SettingsPage from './pages/SettingsPage';
 import Error404Page from './pages/Error404Page';
 import Error403Page from './pages/Error403Page';
 import Error505Page from './pages/Error505Page';
+
 
 function App() {
   return (
@@ -48,10 +50,11 @@ function App() {
 
             {/* Admin Dashboard & App Routes  */}
             <Route path="/admin-dashboard" element={ <ProtectedRoute requiredRole="admin"> <AdminDashboardPage /> </ProtectedRoute>} />
-            <Route path="/admin-panel" element={<AdminPanelPage />} />
+            <Route path="/user-management" element={<UserManagementPage />} />
             <Route path="/all-tickets" element={<AllTicketsPage />} />
             <Route path="/create-ticket" element={<CreateTicketPage />} />
             <Route path="/performance" element={<PerformancePage />} />
+            <Route path="/activity-log" element={<ActivityLogPage />} />
 
             {/* Both */}
             <Route path="/chat" element={<ChatPage />} />

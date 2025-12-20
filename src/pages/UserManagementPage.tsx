@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
-import { usePermissions } from '../context/PermissionsContext';
-import { adminMockApi, AdminStats, AdminUser, ActivityLog, Permission } from '../services/adminMockApi';
+import { adminMockApi, AdminStats, AdminUser} from '../services/adminMockApi';
 import AddUserModal from '../components/modals/AddUserModal';
 import AddDepartmentModal from '../components/modals/AddDepartmentModal';
 import EditUserModal from '../components/modals/EditUserModal';
@@ -11,7 +10,7 @@ import ChangeRoleModal from '../components/modals/ChangeRoleModal';
 import DeleteUserConfirmationModal from '../components/modals/DeleteUserConfirmationModal';
 import UserActionsDropdown from '../components/dropdowns/UserActionsDropdown';
 
-const AdminPanelPage: React.FC = () => {
+const UserManagementPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
   const [stats, setStats] = useState<AdminStats>({
@@ -20,8 +19,6 @@ const AdminPanelPage: React.FC = () => {
     pendingApprovals: 0,
   });
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<'all' | 'admin' | 'user'>('all');
@@ -31,23 +28,18 @@ const AdminPanelPage: React.FC = () => {
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [isChangeRoleModalOpen, setIsChangeRoleModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-  const { refreshPermissions } = usePermissions();
   const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; email: string } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsData, usersData, logsData, permissionsData] = await Promise.all([
+        const [statsData, usersData] = await Promise.all([
           adminMockApi.getStats(),
           adminMockApi.getUsers(),
-          adminMockApi.getActivityLogs(),
-          adminMockApi.getPermissions(),
         ]);
         setStats(statsData);
         setUsers(usersData);
-        setActivityLogs(logsData);
-        setPermissions(permissionsData);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -64,33 +56,13 @@ const AdminPanelPage: React.FC = () => {
       setUsers(users.map(u => u.id === userId ? updatedUser : u));
       
       // Update stats and logs
-      const [statsData, logsData] = await Promise.all([
-        adminMockApi.getStats(),
-        adminMockApi.getActivityLogs(),
-      ]);
+      const statsData = await adminMockApi.getStats();
       setStats(statsData);
-      setActivityLogs(logsData);
     } catch (error) {
       console.error('Failed to toggle status:', error);
     }
   };
 
-  const handleTogglePermission = async (permissionId: string) => {
-    try {
-      const updatedPermission = await adminMockApi.togglePermission(permissionId);
-      setPermissions(permissions.map(p => p.id === permissionId ? updatedPermission : p));
-      
-      // Update logs
-      const logsData = await adminMockApi.getActivityLogs();
-      setActivityLogs(logsData);
-
-      // Refresh global permissions
-      await refreshPermissions();
-
-    } catch (error) {
-      console.error('Failed to toggle permission:', error);
-    }
-  };
 
   const handleAddUser = async (userData: {
     fullName: string;
@@ -104,12 +76,8 @@ const AdminPanelPage: React.FC = () => {
       setUsers([...users, newUser]);
       
       // Update stats and logs
-      const [statsData, logsData] = await Promise.all([
-        adminMockApi.getStats(),
-        adminMockApi.getActivityLogs(),
-      ]);
+      const statsData = await adminMockApi.getStats();
       setStats(statsData);
-      setActivityLogs(logsData);
       setIsAddUserModalOpen(false);
     } catch (error) {
       console.error('Failed to add user:', error);
@@ -119,10 +87,6 @@ const AdminPanelPage: React.FC = () => {
   const handleAddDepartment = async (departmentName: string) => {
     try {
       await adminMockApi.addDepartment(departmentName);
-      
-      // Update logs
-      const logsData = await adminMockApi.getActivityLogs();
-      setActivityLogs(logsData);
       setIsAddDepartmentModalOpen(false);
     } catch (error) {
       console.error('Failed to add department:', error);
@@ -137,15 +101,12 @@ const AdminPanelPage: React.FC = () => {
     const handleEditUserSubmit = async (userId: string, userData: {
         fullName: string;
         email: string;
-            department: string;
+        department: string;
         position: string;
     }) => {
     try {
         const updatedUser = await adminMockApi.editUser(userId, userData);
         setUsers(users.map(u => u.id === userId ? updatedUser : u));
-    
-        const logsData = await adminMockApi.getActivityLogs();
-        setActivityLogs(logsData);
         setIsEditUserModalOpen(false);
     } catch (error) {
         console.error('Failed to edit user:', error);
@@ -161,9 +122,6 @@ const AdminPanelPage: React.FC = () => {
     try {
         const updatedUser = await adminMockApi.changeUserRole(userId, newRole);
         setUsers(users.map(u => u.id === userId ? updatedUser : u));
-    
-        const logsData = await adminMockApi.getActivityLogs();
-        setActivityLogs(logsData);
         setIsChangeRoleModalOpen(false);
     } catch (error) {
         console.error('Failed to change role:', error);
@@ -186,16 +144,13 @@ const AdminPanelPage: React.FC = () => {
       const statsData = await adminMockApi.getStats();
       setStats(statsData);
     
-      const logsData = await adminMockApi.getActivityLogs();
-      setActivityLogs(logsData);
-    
       setUserToDelete(null);
     } catch (error) {
       console.error('Failed to delete user:', error);
     }
   };
 
-  const scrollToUserManagement = () => {
+  const scrollToUserManagementTable = () => {
     const element = document.getElementById('user-management');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -226,32 +181,6 @@ const AdminPanelPage: React.FC = () => {
       : 'bg-green-100 text-green-700 border-green-200';
   };
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'ticket':
-        return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-        );
-      case 'user':
-        return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-        );
-      case 'system':
-        return (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       <Sidebar isDarkMode={isDarkMode}  />
@@ -262,7 +191,7 @@ const AdminPanelPage: React.FC = () => {
         <div className={`px-8 py-6 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between">
             <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
-              Admin Panel
+              User Management
             </h1>           
 
             {/* Theme Toggle */}
@@ -301,7 +230,7 @@ const AdminPanelPage: React.FC = () => {
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-6 py-3">
           {/* Statistics Cards */}
           {isLoading ? (
             <div className="grid grid-cols-3 gap-6 mb-8">
@@ -313,19 +242,19 @@ const AdminPanelPage: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-3 gap-6 mb-3">
               {/* Total Users Card */}
               <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    <h3 className={`text-2xl font-semibold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                       {stats.totalUsers}
                     </h3>
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       Total Users
                     </p>
                   </div>
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
                     <svg className={`w-6 h-6 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
@@ -337,14 +266,14 @@ const AdminPanelPage: React.FC = () => {
               <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    <h3 className={`text-2xl font-semibold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                       {stats.totalTickets}
                     </h3>
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       Total Tickets <span className="text-xs">(This Month)</span>
                     </p>
                   </div>
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-teal-900/30' : 'bg-teal-100'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-teal-900/30' : 'bg-teal-100'}`}>
                     <svg className={`w-6 h-6 ${isDarkMode ? 'text-teal-400' : 'text-teal-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
@@ -356,14 +285,14 @@ const AdminPanelPage: React.FC = () => {
               <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    <h3 className={`text-2xl font-semibold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
                       {stats.pendingApprovals}
                     </h3>
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       Pending Approvals
                     </p>
                   </div>
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-orange-900/30' : 'bg-orange-100'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-orange-900/30' : 'bg-orange-100'}`}>
                     <svg className={`w-6 h-6 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -373,13 +302,13 @@ const AdminPanelPage: React.FC = () => {
             </div>
           )}
 
-          {/* User Management Section */}
-          <div id="user-management" className={`rounded-xl border mb-8 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          {/* User Table Section */}
+          <div id="user-management-table" className={`rounded-xl border mb-8 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             {/* Section Header */}
             <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                  User Management
+                  All Users
                 </h2>
                 <div className="flex items-center gap-3">
                   <button 
@@ -389,7 +318,7 @@ const AdminPanelPage: React.FC = () => {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Add new user
+                    Add New User
                   </button>
                   <button 
                     onClick={() => setIsAddDepartmentModalOpen(true)}
@@ -398,7 +327,7 @@ const AdminPanelPage: React.FC = () => {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Add new department
+                    Add New Department
                   </button>
                 </div>
               </div>
@@ -581,7 +510,7 @@ const AdminPanelPage: React.FC = () => {
 
               {/* Approve Registrations */}
               <button 
-                onClick={scrollToUserManagement}
+                onClick={scrollToUserManagementTable}
                 className={`p-6 rounded-xl border transition-all hover:shadow-lg hover:border-teal-500/50 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
               >
                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${isDarkMode ? 'bg-purple-900/30' : 'bg-purple-100'}`}>
@@ -633,21 +562,21 @@ const AdminPanelPage: React.FC = () => {
                 </p>
               </button>
 
-              {/* View All Tickets */}
+              {/* View Activity Log */}
               <button 
-                onClick={() => navigate('/all-tickets')}
+                onClick={() => navigate('/activity-log')}
                 className={`p-6 rounded-xl border transition-all hover:shadow-lg hover:border-teal-500/50 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
               >
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${isDarkMode ? 'bg-cyan-900/30' : 'bg-cyan-100'}`}>
-                  <svg className={`w-6 h-6 ${isDarkMode ? 'text-cyan-400' : 'text-cyan-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
+                  <svg className={`w-6 h-6 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                   </svg>
                 </div>
                 <h3 className={`text-base font-semibold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                  View All Tickets
+                  View Activity Log
                 </h3>
                 <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Browse all support tickets
+                  See all system activities
                 </p>
               </button>
 
@@ -669,77 +598,6 @@ const AdminPanelPage: React.FC = () => {
                   Configure system settings
                 </p>
               </button>
-            </div>
-          </div>
-
-          {/* Recent Activity & Permission Settings */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Recent Activity Log */}
-            <div className={`rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-              <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                  Recent Activity
-                </h2>
-              </div>
-              <div className="p-6 max-h-96 overflow-y-auto">
-                <div className="space-y-4">
-                  {activityLogs.map((log) => (
-                    <div key={log.id} className="flex items-start gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        log.type === 'ticket' 
-                          ? isDarkMode ? 'bg-teal-900/30 text-teal-400' : 'bg-teal-100 text-teal-600'
-                          : log.type === 'user'
-                          ? isDarkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-600'
-                          : isDarkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {getActivityIcon(log.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          <span className="font-medium">{log.user}</span> {log.action}
-                        </p>
-                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                          {log.timestamp}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Permission Settings */}
-            <div className={`rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-              <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                  Permission Settings
-                </h2>
-              </div>
-              <div className="p-6">
-                <div className="space-y-3">
-                  {permissions.map((permission) => (
-                    <div key={permission.id} className="flex items-center justify-between">
-                      <label className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {permission.label}
-                      </label>
-                      <button
-                        onClick={() => handleTogglePermission(permission.id)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          permission.enabled 
-                            ? 'bg-teal-600' 
-                            : isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            permission.enabled ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -786,4 +644,4 @@ const AdminPanelPage: React.FC = () => {
   );
 };
 
-export default AdminPanelPage;
+export default UserManagementPage;

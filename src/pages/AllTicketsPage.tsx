@@ -5,6 +5,7 @@ import { usePermissions } from '../context/PermissionsContext';
 import { useTickets } from '../hooks/useTickets';
 import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
+import UpdateAssignmentModal from '../components/modals/UpdateAssignmentModal';
 import DeleteConfirmationModal from '../components/modals/DeleteConfirmationModal';
 import { ticketService } from '../services/ticketService';
 import { Ticket } from '../types';
@@ -20,6 +21,7 @@ const AllTicketsPage: React.FC = () => {
 
   // Modal states
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [ticketToDelete, setTicketToDelete] = useState<{ id: string; title: string } | null>(null);
@@ -66,6 +68,14 @@ const AllTicketsPage: React.FC = () => {
     }
   };
 
+  const handleUpdateAssignment = (ticketId: string) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    if (ticket) {
+      setSelectedTicket(ticket);
+      setIsAssignmentModalOpen(true);
+    }
+  };
+
   const handleStatusUpdate = async (ticketId: string, newStatus: string) => {
     try {
       await ticketService.updateTicket(ticketId, { status: newStatus as any });
@@ -74,6 +84,18 @@ const AllTicketsPage: React.FC = () => {
       setSelectedTicket(null);
     } catch (error) {
       console.error('Failed to update ticket status:', error);
+      throw error;
+    }
+  };
+
+  const handleAssignmentUpdate = async (ticketId: string, newAssigneeId: string) => {
+    try {
+      await ticketService.updateTicket(ticketId, { assignedTo: newAssigneeId });
+      await refetch(); // Refresh ticket list
+      setIsAssignmentModalOpen(false);
+      setSelectedTicket(null);
+    } catch (error) {
+      console.error('Failed to update ticket assignment:', error);
       throw error;
     }
   };
@@ -261,6 +283,7 @@ const AllTicketsPage: React.FC = () => {
             isDarkMode={isDarkMode}
             onDelete={handleDelete}
             onUpdateStatus={handleUpdateStatus}
+            onUpdateAssignment={handleUpdateAssignment}
             userRole="admin"
             canDelete={canDeleteTickets}
           />
@@ -277,6 +300,20 @@ const AllTicketsPage: React.FC = () => {
           }}
           ticket={selectedTicket}
           onUpdate={handleStatusUpdate}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* Update Assignment Modal */}
+      {selectedTicket && (
+        <UpdateAssignmentModal
+          isOpen={isAssignmentModalOpen}
+          onClose={() => {
+            setIsAssignmentModalOpen(false);
+            setSelectedTicket(null);
+          }}
+          ticket={selectedTicket}
+          onUpdate={handleAssignmentUpdate}
           isDarkMode={isDarkMode}
         />
       )}

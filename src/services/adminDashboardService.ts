@@ -6,6 +6,7 @@ import {
   TeamActivityData,
   OverdueTicket 
 } from '../types';
+import { RecentTicket } from '../components/admin/RecentTicketsWidget';
 
 class AdminDashboardService {
   // Simulate API delay
@@ -23,12 +24,12 @@ class AdminDashboardService {
     return {
       totalTeamTickets: 156,
       totalTeamTicketsChange: '+18%',
-      activeAgents: 12,
-      activeAgentsChange: '+2',
+      totalUsers: 24,
+      totalUsersChange: '+3',
       resolvedThisWeek: 89,
       resolvedThisWeekChange: '+25%',
-      avgTeamResolutionTime: '4.2h',
-      avgTeamResolutionTimeChange: '-15%',
+      totalOpenTickets: 67,
+      totalOpenTicketsChange: '-12%',
     };
   }
 
@@ -252,6 +253,115 @@ class AdminDashboardService {
       },
     ];
   }
+  // GET RECENT TICKETS (NEW!)
+  async getRecentTickets(): Promise<RecentTicket[]> {
+    await this.delay(500);
+  
+    // TODO: Replace with actual API call
+    // const response = await fetch('/api/admin/tickets/recent');
+  
+    return [
+      {
+        id: 'recent_1',
+        ticketId: 'TCK-248',
+        title: 'Update API documentation for v2.0 release',
+        status: 'done',
+        priority: 'low',
+        assignedTo: 'Ali Öztürk',
+        updatedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 minutes ago
+        project: 'Documentation',
+      },
+      {
+        id: 'recent_2',
+        ticketId: 'TCK-247',
+        title: 'Fix mobile responsive issues on dashboard',
+        status: 'done',
+        priority: 'medium',
+        assignedTo: 'Ayşe Demir',
+        updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
+        project: 'UI/UX',
+      },
+      {
+        id: 'recent_3',
+        ticketId: 'TCK-246',
+        title: 'Add Excel export functionality to reports page',
+        status: 'in_progress',
+        priority: 'medium',
+        assignedTo: 'Mehmet Kaya',
+        updatedAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(), // 35 minutes ago
+        project: 'Analytics',
+      },
+      {
+        id: 'recent_4',
+        ticketId: 'TCK-245',
+        title: 'Fix critical authentication bug in login flow',
+        status: 'blocked',
+        priority: 'high',
+        assignedTo: 'Fatma Çelik',
+        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+        project: 'Security',
+      },
+      {
+        id: 'recent_5',
+        ticketId: 'TCK-244',
+        title: 'Implement real-time notification system for ticket updates',
+        status: 'in_progress',
+        priority: 'high',
+        assignedTo: 'Ahmet Yılmaz',
+        updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
+        project: 'Platform Core',
+      },
+      {
+        id: 'recent_6',
+        ticketId: 'TCK-243',
+        title: 'Optimize database query performance for large datasets',
+        status: 'in_progress',
+        priority: 'high',
+        assignedTo: 'Ahmet Yılmaz',
+        updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+        project: 'Backend',
+      },
+      {
+        id: 'recent_7',
+        ticketId: 'TCK-242',
+        title: 'Design new user onboarding flow',
+        status: 'new',
+        priority: 'low',
+        assignedTo: 'Ayşe Demir',
+        updatedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), // 8 hours ago
+        project: 'Product',
+      },
+      {
+        id: 'recent_8',
+        ticketId: 'TCK-241',
+        title: 'Integrate third-party payment gateway',
+        status: 'in_progress',
+        priority: 'high',
+        assignedTo: 'Mehmet Kaya',
+        updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), // 12 hours ago
+        project: 'E-commerce',
+      },
+      {
+        id: 'recent_9',
+        ticketId: 'TCK-240',
+        title: 'Add multi-language support for European markets',
+        status: 'done',
+        priority: 'medium',
+        assignedTo: 'Fatma Çelik',
+        updatedAt: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(), // 20 hours ago
+        project: 'Localization',
+      },
+      {
+        id: 'recent_10',
+        ticketId: 'TCK-239',
+        title: 'Implement automated backup system',
+        status: 'done',
+        priority: 'high',
+        assignedTo: 'Ali Öztürk',
+        updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+        project: 'Infrastructure',
+      },
+    ];
+  }
 }
-
 export const adminDashboardService = new AdminDashboardService();

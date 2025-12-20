@@ -84,7 +84,7 @@ const TeamActivityTrend: React.FC<TeamActivityTrendProps> = ({
       <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'}`}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className={`text-lg font-semibold font-['Inter'] ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Team Activity Trend
             </h3>
             <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
