@@ -32,11 +32,12 @@ const LoginPage: React.FC = () => {
       const response = await authService.login(formData);
       console.log('Login successful:', response);
       
-      // Token'ı kaydet
+      // Token ve user bilgilerini kaydet
       authService.saveAuth(response);
       
-      // Role'e göre yönlendirme yap
-      if (response.user.role === 'admin') {
+      // Role'e göre yönlendirme yap (backend "USER" veya "ADMIN" döner)
+      const userRole = response.role?.toUpperCase();
+      if (userRole === 'ADMIN') {
         navigate('/admin-dashboard');
       } else {
         navigate('/dashboard');

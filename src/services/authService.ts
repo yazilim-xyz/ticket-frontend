@@ -1,137 +1,255 @@
-import { RegisterData, LoginCredentials, AuthResponse } from '../types';
+// ============================================
+// AUTH SERVICE - Backend API Entegrasyonu
+// ============================================
 
-// Mock kullanıcı veritabanı - Test kullanıcıları ile 
-const mockUsers: any[] = [
-  {
-    id: 'admin_user_001',
-    fullName: 'Admin User',
-    email: 'admin@company.com',
-    department: 'IT',
-    password: 'admin123',
-    role: 'admin',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'test_user_001',
-    fullName: 'Test User',
-    email: 'user@company.com',
-    department: 'Support',
-    password: 'user123',
-    role: 'user',
-    createdAt: new Date().toISOString(),
-  }
-];
+const API_BASE_URL = "http://localhost:8081";
 
+// ============================================
+// INTERFACES - Backend Response Formatları
+// ============================================
 
-// Mock API delay simülasyonu
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export interface RegisterData {
+  Name: string;
+  Surname: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: number;
+  Name: string;
+  Surname: string;
+  email: string;
+  role: string;
+}
+
+// Backend Login Response (flat yapı, "token" kullanıyor)
+export interface LoginResponse {
+  id: number;
+  Name: string;
+  Surname: string;
+  email: string;
+  role: string;
+  token: string;        // NOT: accessToken değil, token!
+  refreshToken: string;
+}
+
+// Backend Register Response
+export interface RegisterResponse {
+  id: number;
+  Name: string;
+  Surname: string;
+  email: string;
+  role: string;
+}
+
+// ============================================
+// AUTH SERVICE
+// ============================================
 
 export const authService = {
-  // Register (Kayıt)
-  register: async (data: RegisterData): Promise<AuthResponse> => {
-    await delay(1000); // 1 saniye bekle (API simülasyonu)
-
-    // Email zaten kayıtlı mı kontrol et
-    const existingUser = mockUsers.find(u => u.email === data.email);
-    if (existingUser) {
-      throw new Error('This email is already registered');
-    }
-
-    // Password validation
-    if (!data.password || data.password.length < 6) {
-      throw new Error('Password must be at least 6 characters');
-    }
-
-    // Yeni kullanıcı oluştur
-    const newUser = {
-      id: `user_${Date.now()}`,
-      fullName: data.fullName,
-      email: data.email,
-      department: data.department,
-      password: data.password, // Password kaydedildi (gerçek uygulamada hash'lenecek)
-      role: 'user' as const, // Yeni kullanıcılar default olarak 'user'
-      createdAt: new Date().toISOString(),
-    };
-
-    mockUsers.push(newUser);
-
-    // Mock token oluştur
-    const token = `mock_token_${newUser.id}`;
-
-    console.log('User registered:', { ...newUser, password: '***hidden***' });
-    console.log('Total users:', mockUsers.length);
-
-    return {
-      user: {
-        id: newUser.id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        department: newUser.department,
-        role: newUser.role,
-        createdAt: newUser.createdAt,
+  /**
+   * Register (Kayıt)
+   * POST /auth/register
+   */
+  register: async (data: RegisterData): Promise<RegisterResponse> => {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      token,
-    };
+      body: JSON.stringify({
+        name: data.Name,
+        surname: data.Surname,
+        email: data.email,
+        password: data.password,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      if (response.status === 409 || errorData.message?.includes("already")) {
+        throw new Error("This email is already registered");
+      }
+      if (response.status === 400) {
+        throw new Error(errorData.message || "Invalid registration data");
+      }
+      throw new Error(errorData.message || "Registration failed");
+    }
+
+    return await response.json();
   },
 
-  // Login (Giriş)
-  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    await delay(1000); // 1 saniye bekle
-
-    // Kullanıcıyı bul
-    const user = mockUsers.find(u => u.email === credentials.email);
-    
-    if (!user) {
-      throw new Error('Invalid email or password');
-    }
-
-    // Password kontrolü
-    if (user.password !== credentials.password) {
-      throw new Error('Invalid email or password');
-    }
-
-    // Mock token oluştur
-    const token = `mock_token_${user.id}`;
-
-    console.log('User logged in:', { ...user, password: '***hidden***' });
-
-    return {
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        department: user.department,
-        role: user.role,
-        createdAt: user.createdAt,
+  /**
+   * Login (Giriş)
+   * POST /auth/login
+   */
+  login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      token,
-    };
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      if (response.status === 401) {
+        throw new Error("Invalid email or password");
+      }
+      if (response.status === 403) {
+        throw new Error("Account is disabled. Please contact administrator.");
+      }
+      throw new Error(errorData.message || "Login failed");
+    }
+
+    const data: LoginResponse = await response.json();
+    return data;
   },
 
-  // Logout (Çıkış)
+  /**
+   * Logout (Çıkış)
+   * POST /auth/logout
+   */
   logout: async (): Promise<void> => {
-    await delay(500);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    console.log('User logged out');
+    const token = localStorage.getItem("accessToken");
+
+    try {
+      if (token) {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Her durumda local storage'ı temizle
+      authService.clearAuth();
+    }
   },
 
-  // Token'ı kaydet
-  saveAuth: (auth: AuthResponse): void => {
-    localStorage.setItem('token', auth.token);
-    localStorage.setItem('user', JSON.stringify(auth.user));
+  /**
+   * Refresh Token
+   * POST /auth/refresh
+   */
+  refreshToken: async (): Promise<LoginResponse> => {
+    const refreshToken = localStorage.getItem("refreshToken");
+
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refreshToken: refreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      authService.clearAuth();
+      throw new Error("Session expired. Please login again.");
+    }
+
+    const data: LoginResponse = await response.json();
+    authService.saveAuth(data);
+    return data;
   },
 
-  // Token'ı al
-  getAuth: (): AuthResponse | null => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
+  /**
+   * Auth bilgilerini kaydet
+   */
+  saveAuth: (auth: LoginResponse): void => {
+    // Backend "token" olarak gönderiyor, biz "accessToken" olarak kaydediyoruz
+    localStorage.setItem("accessToken", auth.token);
+    localStorage.setItem("refreshToken", auth.refreshToken);
+    localStorage.setItem("userId", auth.id.toString());
+    
+    // User objesini oluştur ve kaydet
+    const user: User = {
+      id: auth.id,
+      Name: auth.Name,
+      Surname: auth.Surname,
+      email: auth.email,
+      role: auth.role,
+    };
+    localStorage.setItem("user", JSON.stringify(user));
+  },
+
+  /**
+   * Auth bilgilerini temizle
+   */
+  clearAuth: (): void => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("user");
+  },
+
+  /**
+   * Mevcut auth bilgilerini al
+   */
+  getAuth: (): { token: string; user: User } | null => {
+    const token = localStorage.getItem("accessToken");
+    const userStr = localStorage.getItem("user");
 
     if (!token || !userStr) return null;
 
-    return {
-      token,
-      user: JSON.parse(userStr),
-    };
+    try {
+      return {
+        token,
+        user: JSON.parse(userStr),
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Kullanıcı giriş yapmış mı?
+   */
+  isAuthenticated: (): boolean => {
+    return !!localStorage.getItem("accessToken");
+  },
+
+  /**
+   * Mevcut kullanıcıyı al
+   */
+  getCurrentUser: (): User | null => {
+    const userStr = localStorage.getItem("user");
+    if (!userStr) return null;
+
+    try {
+      return JSON.parse(userStr);
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Access token'ı al
+   */
+  getAccessToken: (): string | null => {
+    return localStorage.getItem("accessToken");
   },
 };
+
+export default authService;

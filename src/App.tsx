@@ -44,7 +44,7 @@ function App() {
             <Route path="/reset-password" element={<PasswordResetPage />} />
             
             {/* User Dashboard & App Routes */}
-            <Route path="/dashboard" element={ <ProtectedRoute requiredRole="user"> <DashboardPage /> </ProtectedRoute>} />
+            <Route path="/dashboard" element={<DashboardPage />}/>
             <Route path="/active-tickets" element={<ActiveTicketsPage />} />
             <Route path="/statistics" element={<UserStatisticsPage />} />
 

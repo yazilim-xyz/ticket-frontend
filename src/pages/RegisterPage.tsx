@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
@@ -10,16 +9,17 @@ const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
   const [formData, setFormData] = useState({
-    fullName: '',
-    department: '',
+    Name: '',
+    Surname: '',
     email: '',
-    password: '', // Password eklendi
+    password: '',
     confirmPassword: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isEmailExists, setIsEmailExists] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -39,6 +39,7 @@ const RegisterPage: React.FC = () => {
     setIsLoading(true);
     setError('');
     setIsEmailExists(false);
+    setSuccessMessage('');
 
     // Password match kontrolü
     if (formData.password !== formData.confirmPassword) {
@@ -47,28 +48,30 @@ const RegisterPage: React.FC = () => {
       return;
     }
 
-    // Password validation 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    // Password validation - min 8 karakter
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
       setIsLoading(false);
       return;
     }
 
     try {
       const response = await authService.register({
-        fullName: formData.fullName,
+        Name: formData.Name,
+        Surname: formData.Surname,
         email: formData.email,
-        department: formData.department,
         password: formData.password,
       });
 
       console.log('Registration successful:', response);
       
-      // Token'ı kaydet
-      authService.saveAuth(response);
+      // Başarılı mesajı göster
+      setSuccessMessage('Registration successful! Redirecting to login...');
       
-      // Login sayfasına yönlendir
-      navigate('/login');
+      // 2 saniye sonra login sayfasına yönlendir
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
 
     } catch (err: any) {
       console.error('Registration failed:', err);
@@ -97,23 +100,16 @@ const RegisterPage: React.FC = () => {
 
       {/* Sağ Taraf - Form */}
       <div className={`w-[32%] min-w-[400px] ${isDarkMode ? 'bg-gray-900' : 'bg-zinc-100'} flex flex-col items-center justify-start px-[75px] py-12 relative overflow-y-auto`}>
-        {/* Dark/Light Mode Toggle - Sağ Üst - Switch Style  */}
+        {/* Dark/Light Mode Toggle - Sağ Üst */}
         <div className="absolute top-8 right-8 flex items-center gap-2">
           {/* Sun Icon with Tick */}
           <div className="relative">
             <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-gray-600' : 'text-yellow-500'}`} fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
             </svg>
-            {/* Tick for Light Mode */}
             {!isDarkMode && (
               <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
-                <svg 
-                  className="w-2.5 h-2.5 text-white" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  strokeWidth={3} 
-                >
+                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
@@ -126,7 +122,6 @@ const RegisterPage: React.FC = () => {
             className="relative w-14 h-7 rounded-full transition-colors duration-300 bg-cyan-500"
             aria-label="Toggle theme"
           >
-            {/* Switch Circle */}
             <span
               className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
                 isDarkMode ? 'translate-x-7' : 'translate-x-0'
@@ -139,16 +134,9 @@ const RegisterPage: React.FC = () => {
             <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-blue-400' : 'text-gray-800'}`} fill="currentColor" viewBox="0 0 20 20">
               <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
             </svg>
-            {/* Tick for Dark Mode */}
             {isDarkMode && (
               <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
-                <svg 
-                  className="w-2.5 h-2.5 text-white" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                  strokeWidth={3}
-                >
+                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
@@ -187,25 +175,32 @@ const RegisterPage: React.FC = () => {
               <span className="font-bold">'Complete Registration'</span> button.
             </p>
 
+            {/* Success Message */}
+            {successMessage && (
+              <div className="p-3 bg-emerald-100 border border-emerald-500 rounded-lg">
+                <p className="text-emerald-700 text-sm font-medium text-center">
+                  ✓ {successMessage}
+                </p>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               {/* Full Name Input */}
               <input
                 type="text"
-                name="fullName"
-                value={formData.fullName}
+                name="Name"
+                value={formData.Name}
                 onChange={handleChange}
-                placeholder="Full Name"
+                placeholder="Name"
                 className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
                 required
               />
-
-              {/* Department Name Input */}
               <input
                 type="text"
-                name="department"
-                value={formData.department}
+                name="Surname"
+                value={formData.Surname}
                 onChange={handleChange}
-                placeholder="Department Name"
+                placeholder="Surname"
                 className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
                 required
               />
@@ -227,10 +222,10 @@ const RegisterPage: React.FC = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Password (min. 6 characters)"
+                placeholder="Password (min. 8 characters)"
                 className={`w-full h-9 px-4 py-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder-gray-500' : 'bg-white border-neutral-200 text-slate-700 placeholder-slate-400'} rounded-lg border text-base font-normal font-['Inter'] focus:outline-none focus:ring-2 focus:ring-emerald-500`}
                 required
-                minLength={6}
+                minLength={8}
               />
 
               {/* Confirm Password Input */}
@@ -247,9 +242,9 @@ const RegisterPage: React.FC = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !!successMessage}
                 className={`w-full h-9 px-4 bg-emerald-500 rounded-lg text-white text-base font-medium font-['Inter'] hover:bg-emerald-600 transition-colors ${
-                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  isLoading || successMessage ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 {isLoading ? 'Creating Account...' : 'Complete Registration'}

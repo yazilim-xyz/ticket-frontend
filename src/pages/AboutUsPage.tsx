@@ -25,9 +25,9 @@ const AboutUsPage: React.FC = () => {
     const teamMembers = [
         { name: "Türker Kıvılcım", initials: "TK" },
         { name: "Beyzanur Aslan", initials: "BA" },
-        { name: "Vedat Tatlı", initials: "VT" },
+        { name: "Vedat Ali Tatlı", initials: "VAT" },
         { name: "Yelda Delidoğan", initials: "YD" },
-        { name: "Furkan Mete Çalışkan", initials: "FMÇ" },
+        { name: "Furkan Mete Çalış", initials: "FMÇ" },
         { name: "Nisa Öztürk", initials: "NÖ" },
         { name: "Ezgi Yücel", initials: "EY" },
         { name: "Beyda Ertek", initials: "BE" },
