@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import { settingsMockApi, UserSettings } from "../services/settingsMockApi";
+import { settingsApi, UpdateProfileDTO, ChangePasswordDTO } from "../services/settingsApi";
 import { 
   Camera, Check, AlertCircle, Eye, EyeOff, 
-  User, Lock, Shield, Loader2, X, Smartphone
+  User, Lock, Shield, Loader2, X
 } from "lucide-react";
 import Sidebar from "../components/layouts/Sidebar";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 const SettingsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
-  const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
@@ -17,12 +18,15 @@ const SettingsPage: React.FC = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form states
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  // Form states - Profile (Backend name/surname kullanıyor)
+  const [name, setName] = useState("");
+  const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
-  const [phoneCode, setPhoneCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [profileImage, setProfileImage] = useState<string>("");
+  const [username, setUsername] = useState("");
+
+  // Form states - Password
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -36,31 +40,35 @@ const SettingsPage: React.FC = () => {
   const [passwordStrength, setPasswordStrength] = useState(0);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    loadUserData();
+  }, [user]);
 
   useEffect(() => {
     // Calculate password strength
     let strength = 0;
-    if (newPassword.length >= 6) strength++;
-    if (newPassword.length >= 10) strength++;
+    if (newPassword.length >= 8) strength++;  // Backend min 8 karakter istiyor
+    if (newPassword.length >= 12) strength++;
     if (/[A-Z]/.test(newPassword)) strength++;
     if (/[0-9]/.test(newPassword)) strength++;
     if (/[^A-Za-z0-9]/.test(newPassword)) strength++;
     setPasswordStrength(strength);
   }, [newPassword]);
 
-  const loadSettings = async () => {
+  const loadUserData = () => {
     setLoading(true);
     try {
-      const user = await settingsMockApi.getUserSettings();
-      setUserSettings(user);
+      // AuthContext'ten veya localStorage'dan kullanıcı bilgilerini al
+      const currentUser = user || settingsApi.getCurrentUser();
       
-      setFirstName(user.firstName);
-      setLastName(user.lastName);
-      setEmail(user.email);
-      setPhoneCode(user.phoneCode);
-      setPhoneNumber(user.phoneNumber);
+      if (currentUser) {
+        // Backend name/surname kullanıyor
+        setName((currentUser as any).name || (currentUser as any).Name || "");
+        setSurname((currentUser as any).surname || (currentUser as any).Surname || "");
+        setEmail(currentUser.email || "");
+        setPhoneNumber((currentUser as any).phoneNumber || "");
+        setProfileImage((currentUser as any).profileImage || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200");
+        setUsername(currentUser.email?.split('@')[0] || "user");
+      }
     } catch (error) {
       console.error("Settings load error:", error);
     } finally {
@@ -70,28 +78,71 @@ const SettingsPage: React.FC = () => {
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setSaveMessage({ type, text });
-    setTimeout(() => setSaveMessage(null), 3000);
+    setTimeout(() => setSaveMessage(null), 4000);
   };
 
   const handleSaveDetails = async () => {
+    // Validation
+    if (!name.trim() || !surname.trim() || !email.trim()) {
+      showMessage('error', 'Name, surname and email are required');
+      return;
+    }
+
+    if (name.length < 2 || name.length > 50) {
+      showMessage('error', 'Name must be between 2-50 characters');
+      return;
+    }
+
+    if (surname.length < 2 || surname.length > 50) {
+      showMessage('error', 'Surname must be between 2-50 characters');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showMessage('error', 'Please enter a valid email address');
+      return;
+    }
+
     setSaving(true);
     try {
-      await settingsMockApi.updateUserSettings({
-        firstName,
-        lastName,
-        email,
-        phoneCode,
-        phoneNumber
+      // Backend DTO'ya uyumlu data
+      const updateData: UpdateProfileDTO = {
+        name: name.trim(),
+        surname: surname.trim(),
+        email: email.trim(),
+        phoneNumber: phoneNumber?.trim() || undefined
+      };
+
+      const response = await settingsApi.updateProfile(updateData);
+      
+      // AuthContext'i güncelle
+      updateUser({
+        name: response.name,
+        surname: response.surname,
+        email: response.email,
+        phoneNumber: response.phoneNumber
+      } as any);
+
+      // localStorage'ı da güncelle
+      settingsApi.updateLocalUser({
+        name: response.name,
+        surname: response.surname,
+        email: response.email,
+        phoneNumber: response.phoneNumber
       });
-      showMessage('success', 'Profile updated successfully!');
+
+      showMessage('success', response.message || 'Profile updated successfully!');
     } catch (error) {
-      showMessage('error', 'Failed to save changes');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save changes';
+      showMessage('error', errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
   const handleChangePassword = async () => {
+    // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       showMessage('error', 'Please fill all password fields');
       return;
@@ -102,24 +153,31 @@ const SettingsPage: React.FC = () => {
       return;
     }
 
+    if (newPassword.length < 8) {
+      showMessage('error', 'Password must be at least 8 characters');
+      return;
+    }
+
     setSaving(true);
     try {
-      const result = await settingsMockApi.changePassword({
-        currentPassword,
-        newPassword,
-        confirmPassword
-      });
+      // Backend DTO'ya uyumlu data - confirmPassword dahil!
+      const passwordData: ChangePasswordDTO = {
+        oldPassword: currentPassword,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword  // Backend bu alanı istiyor!
+      };
+
+      await settingsApi.changePassword(passwordData);
       
-      if (result.success) {
-        showMessage('success', result.message);
-        setCurrentPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      } else {
-        showMessage('error', result.message);
-      }
+      showMessage('success', 'Password changed successfully!');
+      
+      // Clear form
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (error) {
-      showMessage('error', 'Failed to change password');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to change password';
+      showMessage('error', errorMessage);
     } finally {
       setSaving(false);
     }
@@ -131,8 +189,9 @@ const SettingsPage: React.FC = () => {
 
     setUploadingImage(true);
     try {
-      const newImageUrl = await settingsMockApi.updateProfileImage(file);
-      setUserSettings(prev => prev ? { ...prev, profileImage: newImageUrl } : null);
+      // Şimdilik sadece lokal preview - backend'de profil resmi endpoint'i eklenince güncellenecek
+      const imageUrl = URL.createObjectURL(file);
+      setProfileImage(imageUrl);
       showMessage('success', 'Profile photo updated!');
     } catch (error) {
       showMessage('error', 'Failed to upload image');
@@ -155,261 +214,289 @@ const SettingsPage: React.FC = () => {
     return 'Strong';
   };
 
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'security', label: 'Security', icon: Lock },
-  ] as const;
-
   if (loading) {
     return (
-      <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+      <div className={`min-h-screen flex ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
         <Sidebar isDarkMode={isDarkMode} />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="w-12 h-12 text-teal-600 animate-spin mx-auto" />
-            <p className={`mt-4 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>Loading settings...</p>
-          </div>
+          <Loader2 className={`w-8 h-8 animate-spin ${isDarkMode ? "text-teal-400" : "text-teal-600"}`} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-300`}>
+    <div className={`min-h-screen flex ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       <Sidebar isDarkMode={isDarkMode} />
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-8">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
-                Settings
-              </h1>
-              <p className={`mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                Manage your account settings and preferences
-              </p>
-            </div>
-            
-            {/* Dark Mode Toggle - AiChatBotPage style */}
-            <div className="flex items-center gap-2">
+      
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-4xl mx-auto p-6 lg:p-8">
+          {/* Header with Theme Toggle */}
+          <div className="mb-8 relative">
+            {/* Dark/Light Mode Toggle - Sağ Üst */}
+            <div className="absolute top-0 right-0 flex items-center gap-2">
+              {/* Sun Icon with Tick */}
               <div className="relative">
-                <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-gray-600' : 'text-yellow-500'}`} fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                <svg
+                  className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-gray-600' : 'text-yellow-500'}`}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                    clipRule="evenodd"
+                  />
                 </svg>
                 {!isDarkMode && (
                   <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                    <svg
+                      className="w-2.5 h-2.5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      strokeWidth={3}
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 )}
               </div>
-              
-              <button onClick={toggleTheme} className="relative w-14 h-7 rounded-full transition-colors duration-300 bg-cyan-500" aria-label="Toggle theme">
-                <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isDarkMode ? 'translate-x-7' : 'translate-x-0'}`} />
+
+              {/* Switch Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="relative w-14 h-7 rounded-full transition-colors duration-300 bg-cyan-500"
+                aria-label="Toggle theme"
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
+                    isDarkMode ? 'translate-x-7' : 'translate-x-0'
+                  }`}
+                />
               </button>
-              
+
+              {/* Moon Icon with Tick */}
               <div className="relative">
-                <svg className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-blue-400' : 'text-gray-800'}`} fill="currentColor" viewBox="0 0 20 20">
+                <svg
+                  className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-blue-400' : 'text-gray-800'}`}
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
                   <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                 </svg>
                 {isDarkMode && (
                   <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                    <svg
+                      className="w-2.5 h-2.5 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      strokeWidth={3}
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 )}
               </div>
             </div>
+
+            <h1 className={`text-3xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+              Settings
+            </h1>
+            <p className={`mt-2 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
+              Manage your account settings and preferences
+            </p>
           </div>
 
-          {/* Toast Message */}
-          <div
-            className={`fixed top-4 right-4 z-50 transition-all duration-300 ${
-              saveMessage ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
-            }`}
-          >
-            {saveMessage && (
-              <div className={`px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 ${
-                saveMessage.type === 'success' 
-                  ? "bg-green-500 text-white"
-                  : "bg-red-500 text-white"
-              }`}>
-                {saveMessage.type === 'success' ? (
-                  <Check className="w-5 h-5" />
-                ) : (
-                  <AlertCircle className="w-5 h-5" />
-                )}
-                <span className="font-medium">{saveMessage.text}</span>
-                <button onClick={() => setSaveMessage(null)} className="ml-2 hover:opacity-70">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+          {/* Toast Notification */}
+          {saveMessage && (
+            <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-fadeIn ${
+              saveMessage.type === 'success' 
+                ? 'bg-green-500 text-white' 
+                : 'bg-red-500 text-white'
+            }`}>
+              {saveMessage.type === 'success' ? (
+                <Check className="w-5 h-5" />
+              ) : (
+                <AlertCircle className="w-5 h-5" />
+              )}
+              <span className="font-medium">{saveMessage.text}</span>
+              <button 
+                onClick={() => setSaveMessage(null)}
+                className="ml-2 hover:opacity-80"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                activeTab === 'profile'
+                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/25'
+                  : isDarkMode 
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              Profile
+            </button>
+            <button
+              onClick={() => setActiveTab('security')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
+                activeTab === 'security'
+                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/25'
+                  : isDarkMode 
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
+                    : 'bg-white text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Shield className="w-4 h-4" />
+              Security
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Profile Card - Sol Panel */}
-            <div className="lg:col-span-1">
-              <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm sticky top-8`}>
-                {/* Profile Image */}
-                <div className="text-center mb-6">
-                  <div className="relative inline-block">
+          {/* Content */}
+          <div className="space-y-6">
+            {/* Profile Tab */}
+            {activeTab === 'profile' && (
+              <div className="space-y-6 animate-fadeIn">
+                {/* Profile Photo Section */}
+                <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm`}>
+                  <h2 className={`text-xl font-bold mb-6 ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                    Profile Photo
+                  </h2>
+                  <div className="flex items-center gap-6">
                     <div className="relative">
                       <img
-                        src={userSettings?.profileImage}
+                        src={profileImage}
                         alt="Profile"
-                        className="w-28 h-28 rounded-full object-cover ring-4 ring-teal-500/20"
+                        className="w-24 h-24 rounded-2xl object-cover border-4 border-teal-500/20"
                       />
-                      {uploadingImage && (
-                        <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
-                          <Loader2 className="w-6 h-6 text-white animate-spin" />
-                        </div>
-                      )}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        className="absolute -bottom-2 -right-2 bg-teal-600 hover:bg-teal-700 text-white p-2 rounded-xl shadow-lg transition-all"
+                      >
+                        {uploadingImage ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Camera className="w-4 h-4" />
+                        )}
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
                     </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-0 right-0 w-9 h-9 bg-teal-600 hover:bg-teal-700 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110"
-                    >
-                      <Camera className="w-4 h-4 text-white" />
-                    </button>
+                    <div>
+                      <h3 className={`font-semibold text-lg ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                        {name && surname ? `${name} ${surname}` : "User Name"}
+                      </h3>
+                      <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        @{username}
+                      </p>
+                      <p className={`text-sm ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
+                        {email}
+                      </p>
+                      <p className={`text-xs mt-2 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
+                        JPG, PNG or GIF. Max 2MB.
+                      </p>
+                    </div>
                   </div>
-                  <h3 className={`text-lg font-bold mt-4 ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-                    {firstName} {lastName}
-                  </h3>
-                  <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                    @{userSettings?.username}
-                  </p>
                 </div>
 
-                {/* Navigation Tabs */}
-                <nav className="space-y-1">
-                  {tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
-                          activeTab === tab.id
-                            ? "bg-teal-600 text-white shadow-md"
-                            : isDarkMode
-                              ? "text-gray-300 hover:bg-gray-700"
-                              : "text-gray-600 hover:bg-gray-100"
-                        }`}
-                      >
-                        <Icon className="w-5 h-5" />
-                        <span className="font-medium">{tab.label}</span>
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
-            </div>
-
-            {/* Settings Content - Sağ Panel */}
-            <div className="lg:col-span-3 space-y-6">
-              {/* Profile Tab */}
-              {activeTab === 'profile' && (
-                <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm animate-fadeIn`}>
+                {/* Personal Info Section */}
+                <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm`}>
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-teal-600/10 flex items-center justify-center">
-                      <User className="w-5 h-5 text-teal-600" />
+                    <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
+                      <User className="w-5 h-5 text-teal-500" />
                     </div>
                     <div>
                       <h2 className={`text-xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
                         Personal Information
                       </h2>
                       <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                        Update your personal details
+                        Update your basic profile information
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                        First Name
+                        First Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Enter your first name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
                         className={`w-full px-4 py-3 rounded-xl border-2 transition-all ${
                           isDarkMode 
-                            ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-teal-500" 
-                            : "bg-gray-50 border-gray-200 text-gray-800 focus:border-teal-500"
+                            ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
+                            : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-teal-500"
                         } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
                       />
                     </div>
 
                     <div className="space-y-2">
                       <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                        Last Name
+                        Last Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Enter your last name"
+                        value={surname}
+                        onChange={(e) => setSurname(e.target.value)}
                         className={`w-full px-4 py-3 rounded-xl border-2 transition-all ${
                           isDarkMode 
-                            ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-teal-500" 
-                            : "bg-gray-50 border-gray-200 text-gray-800 focus:border-teal-500"
+                            ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
+                            : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-teal-500"
                         } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
                       />
                     </div>
 
                     <div className="space-y-2">
                       <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                        Email Address
+                        Email <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="email"
+                        placeholder="email@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className={`w-full px-4 py-3 rounded-xl border-2 transition-all ${
                           isDarkMode 
-                            ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-teal-500" 
-                            : "bg-gray-50 border-gray-200 text-gray-800 focus:border-teal-500"
+                            ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
+                            : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-teal-500"
                         } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
                       />
                     </div>
 
                     <div className="space-y-2">
                       <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                        Phone Number
+                        Phone
                       </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={phoneCode}
-                          onChange={(e) => setPhoneCode(e.target.value)}
-                          className={`w-20 px-3 py-3 rounded-xl border-2 text-center transition-all ${
-                            isDarkMode 
-                              ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-teal-500" 
-                              : "bg-gray-50 border-gray-200 text-gray-800 focus:border-teal-500"
-                          } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
-                        />
-                        <input
-                          type="text"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          className={`flex-1 px-4 py-3 rounded-xl border-2 transition-all ${
-                            isDarkMode 
-                              ? "bg-gray-700/50 border-gray-600 text-gray-100 focus:border-teal-500" 
-                              : "bg-gray-50 border-gray-200 text-gray-800 focus:border-teal-500"
-                          } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
-                        />
-                      </div>
+                      <input
+                        type="tel"
+                        placeholder="+1 (555) 000-0000"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className={`w-full px-4 py-3 rounded-xl border-2 transition-all ${
+                          isDarkMode 
+                            ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
+                            : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-teal-500"
+                        } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
+                      />
                     </div>
                   </div>
 
@@ -417,7 +504,7 @@ const SettingsPage: React.FC = () => {
                     <button
                       onClick={handleSaveDetails}
                       disabled={saving}
-                      className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25"
+                      className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25"
                     >
                       {saving ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -428,38 +515,66 @@ const SettingsPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Security Tab */}
-              {activeTab === 'security' && (
-                <div className="space-y-6 animate-fadeIn">
-                  {/* Password Change */}
-                  <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm`}>
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                        <Lock className="w-5 h-5 text-orange-500" />
-                      </div>
-                      <div>
-                        <h2 className={`text-xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-                          Change Password
-                        </h2>
-                        <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                          Ensure your account is using a strong password
-                        </p>
+            {/* Security Tab */}
+            {activeTab === 'security' && (
+              <div className="space-y-6 animate-fadeIn">
+                {/* Password Change */}
+                <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm`}>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                      <Lock className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div>
+                      <h2 className={`text-xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                        Change Password
+                      </h2>
+                      <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        Ensure your account is using a strong password
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                        Current Password <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showCurrentPassword ? "text" : "password"}
+                          placeholder="Enter current password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          className={`w-full px-4 py-3 pr-12 rounded-xl border-2 transition-all ${
+                            isDarkMode 
+                              ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
+                              : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-teal-500"
+                          } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className={`absolute right-4 top-1/2 -translate-y-1/2 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
                       </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                          Current Password
+                          New Password <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
                           <input
-                            type={showCurrentPassword ? "text" : "password"}
-                            placeholder="Enter current password"
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            type={showNewPassword ? "text" : "password"}
+                            placeholder="At least 8 characters"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
                             className={`w-full px-4 py-3 pr-12 rounded-xl border-2 transition-all ${
                               isDarkMode 
                                 ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
@@ -468,135 +583,118 @@ const SettingsPage: React.FC = () => {
                           />
                           <button
                             type="button"
-                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            onClick={() => setShowNewPassword(!showNewPassword)}
                             className={`absolute right-4 top-1/2 -translate-y-1/2 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
                           >
-                            {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                           </button>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                            New Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showNewPassword ? "text" : "password"}
-                              placeholder="Enter new password"
-                              value={newPassword}
-                              onChange={(e) => setNewPassword(e.target.value)}
-                              className={`w-full px-4 py-3 pr-12 rounded-xl border-2 transition-all ${
-                                isDarkMode 
-                                  ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
-                                  : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-teal-500"
-                              } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowNewPassword(!showNewPassword)}
-                              className={`absolute right-4 top-1/2 -translate-y-1/2 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
-                            >
-                              {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                            Confirm Password
-                          </label>
-                          <div className="relative">
-                            <input
-                              type={showConfirmPassword ? "text" : "password"}
-                              placeholder="Confirm new password"
-                              value={confirmPassword}
-                              onChange={(e) => setConfirmPassword(e.target.value)}
-                              className={`w-full px-4 py-3 pr-12 rounded-xl border-2 transition-all ${
-                                isDarkMode 
-                                  ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
-                                  : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-teal-500"
-                              } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              className={`absolute right-4 top-1/2 -translate-y-1/2 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
-                            >
-                              {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                            </button>
-                          </div>
+                      <div className="space-y-2">
+                        <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
+                          Confirm Password <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="Confirm your new password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className={`w-full px-4 py-3 pr-12 rounded-xl border-2 transition-all ${
+                              isDarkMode 
+                                ? "bg-gray-700/50 border-gray-600 text-gray-100 placeholder-gray-500 focus:border-teal-500" 
+                                : "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400 focus:border-teal-500"
+                            } focus:outline-none focus:ring-2 focus:ring-teal-500/20`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className={`absolute right-4 top-1/2 -translate-y-1/2 ${isDarkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                          >
+                            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          </button>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Password Strength Indicator */}
-                      {newPassword && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className={isDarkMode ? "text-gray-400" : "text-gray-500"}>Password Strength</span>
-                            <span className={`font-medium ${
-                              passwordStrength <= 1 ? "text-red-500" :
-                              passwordStrength <= 2 ? "text-orange-500" :
-                              passwordStrength <= 3 ? "text-yellow-500" : "text-green-500"
-                            }`}>
-                              {getPasswordStrengthText()}
-                            </span>
-                          </div>
-                          <div className="flex gap-1">
-                            {[1, 2, 3, 4, 5].map((level) => (
-                              <div
-                                key={level}
-                                className={`h-1.5 flex-1 rounded-full transition-colors ${
-                                  level <= passwordStrength ? getPasswordStrengthColor() : isDarkMode ? "bg-gray-700" : "bg-gray-200"
-                                }`}
-                              />
-                            ))}
-                          </div>
+                    {/* Password Strength Indicator */}
+                    {newPassword && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className={isDarkMode ? "text-gray-400" : "text-gray-500"}>Password Strength</span>
+                          <span className={`font-medium ${
+                            passwordStrength <= 1 ? "text-red-500" :
+                            passwordStrength <= 2 ? "text-orange-500" :
+                            passwordStrength <= 3 ? "text-yellow-500" : "text-green-500"
+                          }`}>
+                            {getPasswordStrengthText()}
+                          </span>
                         </div>
-                      )}
-                    </div>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((level) => (
+                            <div
+                              key={level}
+                              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                                level <= passwordStrength ? getPasswordStrengthColor() : isDarkMode ? "bg-gray-700" : "bg-gray-200"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <ul className={`text-xs space-y-1 mt-2 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
+                          <li className={newPassword.length >= 8 ? "text-green-500" : ""}>
+                            • At least 8 characters
+                          </li>
+                          <li className={/[A-Z]/.test(newPassword) ? "text-green-500" : ""}>
+                            • At least 1 uppercase letter
+                          </li>
+                          <li className={/[0-9]/.test(newPassword) ? "text-green-500" : ""}>
+                            • At least 1 number
+                          </li>
+                          <li className={/[^A-Za-z0-9]/.test(newPassword) ? "text-green-500" : ""}>
+                            • At least 1 special character
+                          </li>
+                        </ul>
+                      </div>
+                    )}
 
-                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-                      <button
-                        onClick={handleChangePassword}
-                        disabled={saving || !currentPassword || !newPassword || !confirmPassword}
-                        className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25"
-                      >
-                        {saving ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
+                    {/* Password Match Indicator */}
+                    {confirmPassword && (
+                      <div className={`flex items-center gap-2 text-sm ${
+                        newPassword === confirmPassword ? "text-green-500" : "text-red-500"
+                      }`}>
+                        {newPassword === confirmPassword ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>Passwords match</span>
+                          </>
                         ) : (
-                          <Shield className="w-5 h-5" />
+                          <>
+                            <AlertCircle className="w-4 h-4" />
+                            <span>Passwords do not match</span>
+                          </>
                         )}
-                        Update Password
-                      </button>
-                    </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Two-Factor Authentication */}
-                  <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                          <Smartphone className="w-5 h-5 text-purple-500" />
-                        </div>
-                        <div>
-                          <h3 className={`font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-                            Two-Factor Authentication
-                          </h3>
-                          <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                            Add an extra layer of security to your account
-                          </p>
-                        </div>
-                      </div>
-                      <button className="px-4 py-2 rounded-xl bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 font-medium transition-colors">
-                        Enable
-                      </button>
-                    </div>
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={saving || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+                      className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25"
+                    >
+                      {saving ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Shield className="w-5 h-5" />
+                      )}
+                      Update Password
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
