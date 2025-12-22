@@ -1,27 +1,42 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'admin' | 'user';
+  requiredRole?: string; // "admin" veya "user"
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
-  const user = localStorage.getItem('user');
+  const { isAuthenticated, loading, user } = useAuth();
+  const location = useLocation();
   
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  // Auth yüklenirken loading göster
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-teal-600 animate-spin mx-auto" />
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (requiredRole) {
-    const userData = JSON.parse(user);
+  // Giriş yapmamışsa login'e yönlendir
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Role kontrolü (eğer requiredRole belirtilmişse)
+  if (requiredRole && user) {
+    const userRole = user.role?.toLowerCase();
+    const required = requiredRole.toLowerCase();
     
-    if (userData.role !== requiredRole) {
-      if (userData.role === 'admin') {
-        return <Navigate to="/admin/dashboard" replace />;
-      } else {
-        return <Navigate to="/dashboard" replace />;
-      }
+    if (userRole !== required) {
+      // Yetkisiz erişim - 403 sayfasına yönlendir
+      return <Navigate to="/403" replace />;
     }
   }
 

@@ -1,17 +1,30 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
 import background from '../assets/background.png';
-import { authService } from '../services/authService';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate(); 
+  const location = useLocation();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { login, isAuthenticated } = useAuth();
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Zaten giriş yapmışsa yönlendir
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = (location.state as any)?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -20,22 +33,17 @@ const LoginPage: React.FC = () => {
     });
   };
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await authService.login(formData);
+      // AuthContext'in login fonksiyonunu kullan
+      const response = await login(formData);
       console.log('Login successful:', response);
-      
-      // Token ve user bilgilerini kaydet
-      authService.saveAuth(response);
-      
-      // Role'e göre yönlendirme yap (backend "USER" veya "ADMIN" döner)
+
+      // Role'e göre yönlendirme yap
       const userRole = response.role?.toUpperCase();
       if (userRole === 'ADMIN') {
         navigate('/admin-dashboard');

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.png';
 
 interface SidebarProps {
@@ -18,10 +19,12 @@ interface MenuItem {
 const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   
-  const user = localStorage.getItem('user');
-  const userRole: 'admin' | 'user' = user ? JSON.parse(user).role : 'user'
+  // Role'ü normalize et (backend ADMIN/USER, frontend admin/user kullanıyor)
+  const userRole = user?.role?.toLowerCase() || 'user';
+  
   const menuItems: MenuItem[] = [
     {
       id: 'dashboard',
@@ -168,11 +171,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
     return true;
   });
 
-  const handleMenuClick = (path: string) => {
+  const handleMenuClick = async (path: string) => {
     if (path === '/logout') {
-      // Handle logout
-      localStorage.removeItem('user');
-      navigate('/');
+      await logout();
+      navigate('/login');
     } else {
       navigate(path);
     }
