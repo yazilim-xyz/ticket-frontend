@@ -12,7 +12,7 @@ export interface User {
 
 // Ticket Types
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
-export type TicketStatus = 'new' | 'in_progress' | 'completed' | 'cancelled' | 'blocked';
+export type TicketStatus = 'new' | 'in_progress' | 'completed' | 'blocked';
 
 export interface Ticket {
   id: string;
@@ -28,6 +28,7 @@ export interface Ticket {
   updatedAt: string;
   owner?: User;
   assignee?: User;
+  attachments?: string[];
 }
 
 // Statistics Types
@@ -168,12 +169,12 @@ export interface DashboardNotification {
 export interface AdminDashboardStats {
   totalTeamTickets: number;
   totalTeamTicketsChange: string;
-  activeAgents: number;
-  activeAgentsChange: string;
+  totalUsers: number;
+  totalUsersChange: string;
   resolvedThisWeek: number;
   resolvedThisWeekChange: string;
-  avgTeamResolutionTime: string;
-  avgTeamResolutionTimeChange: string;
+  totalOpenTickets: number;
+  totalOpenTicketsChange: string;
 }
 
 export interface AgentPerformance {

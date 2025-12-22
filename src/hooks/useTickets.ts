@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Ticket } from '../types';
-import ticketService from '../services/ticketService';
+import { ticketService } from "../services/ticketService";
 
 interface UseTicketsReturn {
   tickets: Ticket[];

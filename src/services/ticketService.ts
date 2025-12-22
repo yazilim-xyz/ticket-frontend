@@ -1,331 +1,326 @@
-import { Ticket } from '../types';
+// TICKET SERVICE - Backend API Integration
+const API_BASE_URL = "http://localhost:8081";
+
+// BACKEND ENUM TYPE DEFINITIONS (exact match from backend)
+export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type TicketCategory = 'BUG' | 'FEATURE' | 'SUPPORT' | 'OTHER';
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'CANCELLED';
+
+// INTERFACES (matching backend DTOs)
+
+// User object in ticket responses
+export interface TicketUser {
+  id: number;
+  name: string;
+  surname: string;
+  email: string;
+  role: string;
+}
+
+// Ticket response from backend (GET)
+export interface Ticket {
+  id: number;
+  title: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  category: TicketCategory;
+  createdBy: TicketUser;
+  assignedTo?: TicketUser;
+  dueDate?: string;
+  resolutionSummary?: string;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  comments?: TicketComment[];
+}
+
+// Create ticket request (POST /api/tickets)
+export interface CreateTicketRequest {
+  title: string;
+  description: string;
+  priority: TicketPriority;
+  category: TicketCategory;
+  createdById: number;  // REQUIRED by backend
+}
+
+// Update ticket status request (PATCH /api/tickets/{id}/status)
+export interface UpdateTicketStatusRequest {
+  status: TicketStatus;
+}
+
+// Assign ticket request (PATCH /api/tickets/{id}/assign)
+export interface AssignTicketRequest {
+  assignedToId: number;
+}
+
+// Ticket comment
+export interface TicketComment {
+  id: number;
+  ticket: any;
+  user: TicketUser;
+  commentText: string;
+  createdAt: string;
+}
+
+// Add comment request (POST /api/tickets/{id}/comments)
+export interface AddCommentRequest {
+  authorId: number;
+  content: string;
+}
+
+
+// HELPER FUNCTIONS
+
+const getAuthHeaders = (): HeadersInit => {
+  const token = localStorage.getItem("accessToken");
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
+
+// Get current user ID from localStorage
+const getCurrentUserId = (): number => {
+  const userId = localStorage.getItem("userId");
+  if (!userId) {
+    throw new Error("User not authenticated. Please login again.");
+  }
+  return parseInt(userId, 10);
+};
+
+
+// TICKET SERVICE
 
 class TicketService {
-  private delay(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  // Mock tickets data
-  private mockTickets: Ticket[] = [
-    {
-      id: 'ticket_1',
-      title: 'TCK-123',
-      description: 'Fix user login issue - Users are experiencing authentication errors when trying to log in with their company email addresses.',
-      project: 'Authentication',
-      priority: 'high',
-      status: 'in_progress',
-      assignedTo: 'user_1',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-15T10:00:00Z',
-      dueDate: '2025-12-20T10:00:00Z',
-      updatedAt: '2025-12-16T14:30:00Z',
-      owner: {
-        id: 'user_1',
-        fullName: 'Ezgi Yücel',
-        email: 'ezgi.yucel@company.com',
-        department: 'Development',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_2',
-      title: 'TCK-122',
-      description: 'Optimize dashboard performance - Dashboard is loading slowly when displaying large datasets.',
-      project: 'Acme GTM',
-      priority: 'medium',
-      status: 'in_progress',
-      assignedTo: 'user_2',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-14T09:00:00Z',
-      dueDate: '2025-12-25T10:00:00Z',
-      updatedAt: '2025-12-16T11:20:00Z',
-      owner: {
-        id: 'user_2',
-        fullName: 'Nisa Öztürk',
-        email: 'nisa.ozturk@company.com',
-        department: 'Development',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_3',
-      title: 'TCK-121',
-      description: 'Add file upload option to ticket creation form',
-      project: 'Luminex',
-      priority: 'low',
-      status: 'new',
-      assignedTo: 'user_1',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-13T14:00:00Z',
-      dueDate: '2025-12-01T10:00:00Z',
-      updatedAt: '2025-12-13T14:00:00Z',
-      owner: {
-        id: 'user_1',
-        fullName: 'Ezgi Yücel',
-        email: 'ezgi.yucel@company.com',
-        department: 'Development',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_4',
-      title: 'TCK-120',
-      description: 'Implement SMTP error handling for email notifications',
-      project: 'Notification Service',
-      priority: 'low',
-      status: 'completed',
-      assignedTo: 'user_3',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-10T10:00:00Z',
-      dueDate: '2025-12-18T10:00:00Z',
-      updatedAt: '2025-12-17T16:45:00Z',
-      owner: {
-        id: 'user_3',
-        fullName: 'Beyzanur Aslan',
-        email: 'beyzanur.aslan@company.com',
-        department: 'Backend',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_5',
-      title: 'TCK-119',
-      description: 'Design reporting dashboard for project managers',
-      project: 'Analytics & Reports',
-      priority: 'medium',
-      status: 'in_progress',
-      assignedTo: 'user_2',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-12T08:00:00Z',
-      dueDate: '2025-12-22T10:00:00Z',
-      updatedAt: '2025-12-15T13:00:00Z',
-      owner: {
-        id: 'user_2',
-        fullName: 'Nisa Öztürk',
-        email: 'nisa.ozturk@company.com',
-        department: 'Development',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_6',
-      title: 'TCK-118',
-      description: 'Fix user permission update bug in admin panel',
-      project: 'Admin Module',
-      priority: 'medium',
-      status: 'blocked',
-      assignedTo: 'user_4',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-11T11:00:00Z',
-      dueDate: '2025-12-19T10:00:00Z',
-      updatedAt: '2025-12-16T09:30:00Z',
-      owner: {
-        id: 'user_4',
-        fullName: 'Türker Kıvılcım',
-        email: 'turker.kivilcim@company.com',
-        department: 'Backend',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_7',
-      title: 'TCK-117',
-      description: 'Optimize JWT validation time for API requests',
-      project: 'Project Orion',
-      priority: 'medium',
-      status: 'in_progress',
-      assignedTo: 'user_1',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-09T15:00:00Z',
-      dueDate: '2025-12-23T10:00:00Z',
-      updatedAt: '2025-12-16T10:15:00Z',
-      owner: {
-        id: 'user_1',
-        fullName: 'Ezgi Yücel',
-        email: 'ezgi.yucel@company.com',
-        department: 'Development',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_8',
-      title: 'TCK-116',
-      description: 'Improve ticket status history view',
-      project: 'DataVista',
-      priority: 'low',
-      status: 'new',
-      assignedTo: 'user_3',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-08T12:00:00Z',
-      dueDate: '2025-12-30T10:00:00Z',
-      updatedAt: '2025-12-08T12:00:00Z',
-      owner: {
-        id: 'user_3',
-        fullName: 'Beyzanur Aslan',
-        email: 'beyzanur.aslan@company.com',
-        department: 'Backend',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_9',
-      title: 'TCK-115',
-      description: 'Integrate chatbot assistant into support panel',
-      project: 'EchoMind',
-      priority: 'low',
-      status: 'completed',
-      assignedTo: 'user_2',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-07T09:00:00Z',
-      dueDate: '2025-12-15T10:00:00Z',
-      updatedAt: '2025-12-14T17:00:00Z',
-      owner: {
-        id: 'user_2',
-        fullName: 'Nisa Öztürk',
-        email: 'nisa.ozturk@company.com',
-        department: 'Development',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_10',
-      title: 'TCK-114',
-      description: 'Replace Recharts with ApexCharts in analytics module',
-      project: 'InsightHub',
-      priority: 'high',
-      status: 'in_progress',
-      assignedTo: 'user_4',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-06T13:00:00Z',
-      dueDate: '2025-12-17T10:00:00Z',
-      updatedAt: '2025-12-16T15:20:00Z',
-      owner: {
-        id: 'user_4',
-        fullName: 'Türker Kıvılcım',
-        email: 'turker.kivilcim@company.com',
-        department: 'Backend',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_11',
-      title: 'TCK-113',
-      description: 'Update UI color palette to match corporate branding',
-      project: 'Aegis',
-      priority: 'high',
-      status: 'new',
-      assignedTo: 'user_1',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-05T10:00:00Z',
-      dueDate: '2025-12-16T10:00:00Z',
-      updatedAt: '2025-12-05T10:00:00Z',
-      owner: {
-        id: 'user_1',
-        fullName: 'Ezgi Yücel',
-        email: 'ezgi.yucel@company.com',
-        department: 'Development',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_12',
-      title: 'TCK-112',
-      description: 'Add comment system to ticket details page',
-      project: 'Ticket Lifecycle',
-      priority: 'medium',
-      status: 'in_progress',
-      assignedTo: 'user_3',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-04T14:00:00Z',
-      dueDate: '2025-12-21T10:00:00Z',
-      updatedAt: '2025-12-16T12:00:00Z',
-      owner: {
-        id: 'user_3',
-        fullName: 'Beyzanur Aslan',
-        email: 'beyzanur.aslan@company.com',
-        department: 'Backend',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-    {
-      id: 'ticket_13',
-      title: 'TCK-111',
-      description: 'Add real-time notifications via Socket.io',
-      project: 'PulseWave',
-      priority: 'high',
-      status: 'blocked',
-      assignedTo: 'user_2',
-      createdBy: 'admin_1',
-      createdAt: '2025-12-03T11:00:00Z',
-      dueDate: '2025-12-14T10:00:00Z',
-      updatedAt: '2025-12-13T10:00:00Z',
-      owner: {
-        id: 'user_2',
-        fullName: 'Nisa Öztürk',
-        email: 'nisa.ozturk@company.com',
-        department: 'Development',
-        role: 'user',
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    },
-  ];
-
-  async getTickets(userId?: string): Promise<Ticket[]> {
-    await this.delay(800);
+  // Get all tickets (no userId filter for now - backend may support later)
+  async getTickets(): Promise<Ticket[]> {
+    const response = await fetch(`${API_BASE_URL}/api/tickets`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
     
-    if (userId) {
-      // Filter tickets for specific user (Active Tickets)
-      return this.mockTickets.filter(ticket => ticket.assignedTo === userId);
+    if (response.status === 401) {
+      throw new Error("Unauthorized. Please login again.");
     }
-    
-    // Return all tickets (All Tickets - Admin)
-    return this.mockTickets;
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to fetch tickets: ${response.status}`);
+    }
+
+    return await response.json();
   }
 
-  async getTicketById(id: string): Promise<Ticket | null> {
-    await this.delay(500);
-    
-    const ticket = this.mockTickets.find(t => t.id === id);
-    return ticket || null;
+  // Get ticket by ID
+  async getTicketById(id: number): Promise<Ticket> {
+    const response = await fetch(`${API_BASE_URL}/api/tickets/${id}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (response.status === 404) {
+      throw new Error("Ticket not found");
+    }
+
+    if (response.status === 401) {
+      throw new Error("Unauthorized. Please login again.");
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to fetch ticket: ${response.status}`);
+    }
+
+    return await response.json();
   }
 
-  async updateTicket(id: string, data: Partial<Ticket>): Promise<Ticket | null> {
-    await this.delay(600);
-    
-    const index = this.mockTickets.findIndex(t => t.id === id);
-    if (index === -1) return null;
-    
-    this.mockTickets[index] = {
-      ...this.mockTickets[index],
-      ...data,
-      updatedAt: new Date().toISOString()
+  // Create new ticket
+  async createTicket(ticketData: Omit<CreateTicketRequest, 'createdById'>): Promise<Ticket> {
+    // Get current user ID from localStorage
+    const createdById = getCurrentUserId();
+
+    // Prepare payload matching backend TicketCreateRequest schema
+    const payload: CreateTicketRequest = {
+      title: ticketData.title,
+      description: ticketData.description,
+      priority: ticketData.priority,
+      category: ticketData.category,
+      createdById,  // ✅ Add current user ID
     };
-    
-    return this.mockTickets[index];
+
+    console.log('Creating ticket with payload:', payload);
+
+    const response = await fetch(`${API_BASE_URL}/api/tickets`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 401) {
+      throw new Error("Unauthorized. Please login again.");
+    }
+
+    if (response.status === 403) {
+      throw new Error("You don't have permission to create tickets");
+    }
+
+    if (response.status === 400) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Invalid ticket data");
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to create ticket: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Ticket created successfully:', result);
+    return result;
+  }
+  
+  // Update ticket status
+  async updateTicketStatus(ticketId: number, status: TicketStatus): Promise<Ticket> {
+    const payload: UpdateTicketStatusRequest = { status };
+
+    const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}/status`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 401) {
+      throw new Error("Unauthorized. Please login again.");
+    }
+
+    if (response.status === 403) {
+      throw new Error("You don't have permission to update this ticket");
+    }
+
+    if (response.status === 404) {
+      throw new Error("Ticket not found");
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to update ticket status: ${response.status}`);
+    }
+
+    return await response.json();
   }
 
-  async deleteTicket(id: string): Promise<boolean> {
-    await this.delay(500);
-    
-    const index = this.mockTickets.findIndex(t => t.id === id);
-    if (index === -1) return false;
-    
-    this.mockTickets.splice(index, 1);
-    return true;
+  // Assign ticket to user
+  async assignTicket(ticketId: number, assignedToId: number): Promise<Ticket> {
+    const payload: AssignTicketRequest = { assignedToId };
+
+    const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}/assign`, {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 401) {
+      throw new Error("Unauthorized. Please login again.");
+    }
+
+    if (response.status === 403) {
+      throw new Error("You don't have permission to assign tickets");
+    }
+
+    if (response.status === 404) {
+      throw new Error("Ticket not found");
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to assign ticket: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+// Get comments for a ticket
+  async getComments(ticketId: number): Promise<TicketComment[]> {
+    const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}/comments`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (response.status === 401) {
+      throw new Error("Unauthorized. Please login again.");
+    }
+
+    if (response.status === 404) {
+      throw new Error("Ticket not found");
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to fetch comments: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  // Add comment to ticket
+  async addComment(ticketId: number, content: string): Promise<TicketComment> {
+    const authorId = getCurrentUserId();
+
+    const payload: AddCommentRequest = {
+      authorId,
+      content,
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}/comments`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (response.status === 401) {
+      throw new Error("Unauthorized. Please login again.");
+    }
+
+    if (response.status === 403) {
+      throw new Error("You don't have permission to add comments");
+    }
+
+    if (response.status === 404) {
+      throw new Error("Ticket not found");
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to add comment: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  // Delete ticket (soft delete)
+  async deleteTicket(ticketId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+
+    if (response.status === 401) {
+      throw new Error("Unauthorized. Please login again.");
+    }
+
+    if (response.status === 403) {
+      throw new Error("You don't have permission to delete tickets");
+    }
+
+    if (response.status === 404) {
+      throw new Error("Ticket not found");
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed to delete ticket: ${response.status}`);
+    }
   }
 }
 
 export const ticketService = new TicketService();
-export default ticketService;
