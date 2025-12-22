@@ -293,7 +293,7 @@ class TicketService {
     // Return all tickets (All Tickets - Admin)
     return this.mockTickets;
   }
-
+  
   async getTicketById(id: string): Promise<Ticket | null> {
     await this.delay(500);
     
@@ -325,6 +325,27 @@ class TicketService {
     this.mockTickets.splice(index, 1);
     return true;
   }
+  async createTicket(payload: {
+  title: string;
+  description: string;
+  priority: "HIGH" | "MEDIUM" | "LOW";
+  category?: string;
+  createdById: number;
+}) {
+  const res = await fetch("http://localhost:8080/api/tickets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
 }
 
 export const ticketService = new TicketService();
