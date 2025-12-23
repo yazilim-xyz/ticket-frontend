@@ -1,12 +1,4 @@
-// ============================================
-// AUTH SERVICE - Backend API Entegrasyonu
-// ============================================
-
 const API_BASE_URL = "http://localhost:8081";
-
-// ============================================
-// INTERFACES - Backend Response Formatları
-// ============================================
 
 export interface RegisterData {
   Name: string;
@@ -35,7 +27,7 @@ export interface LoginResponse {
   Surname: string;
   email: string;
   role: string;
-  token: string;        // NOT: accessToken değil, token!
+  token: string;
   refreshToken: string;
 }
 
@@ -47,10 +39,6 @@ export interface RegisterResponse {
   email: string;
   role: string;
 }
-
-// ============================================
-// AUTH SERVICE
-// ============================================
 
 export const authService = {
   /**
@@ -123,7 +111,7 @@ export const authService = {
    * POST /auth/logout
    */
   logout: async (): Promise<void> => {
-    const token = localStorage.getItem("accessToken");
+    const token = sessionStorage.getItem("accessToken");
 
     try {
       if (token) {
@@ -148,7 +136,7 @@ export const authService = {
    * POST /auth/refresh
    */
   refreshToken: async (): Promise<LoginResponse> => {
-    const refreshToken = localStorage.getItem("refreshToken");
+    const refreshToken = sessionStorage.getItem("refreshToken");
 
     if (!refreshToken) {
       throw new Error("No refresh token available");
@@ -176,12 +164,13 @@ export const authService = {
 
   /**
    * Auth bilgilerini kaydet
+   * sessionStorage kullanıyoruz - tarayıcı/sekme kapanınca otomatik temizlenir
    */
   saveAuth: (auth: LoginResponse): void => {
     // Backend "token" olarak gönderiyor, biz "accessToken" olarak kaydediyoruz
-    localStorage.setItem("accessToken", auth.token);
-    localStorage.setItem("refreshToken", auth.refreshToken);
-    localStorage.setItem("userId", auth.id.toString());
+    sessionStorage.setItem("accessToken", auth.token);
+    sessionStorage.setItem("refreshToken", auth.refreshToken);
+    sessionStorage.setItem("userId", auth.id.toString());
     
     // User objesini oluştur ve kaydet
     const user: User = {
@@ -191,25 +180,25 @@ export const authService = {
       email: auth.email,
       role: auth.role,
     };
-    localStorage.setItem("user", JSON.stringify(user));
+    sessionStorage.setItem("user", JSON.stringify(user));
   },
 
   /**
    * Auth bilgilerini temizle
    */
   clearAuth: (): void => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("user");
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("refreshToken");
+    sessionStorage.removeItem("userId");
+    sessionStorage.removeItem("user");
   },
 
   /**
    * Mevcut auth bilgilerini al
    */
   getAuth: (): { token: string; user: User } | null => {
-    const token = localStorage.getItem("accessToken");
-    const userStr = localStorage.getItem("user");
+    const token = sessionStorage.getItem("accessToken");
+    const userStr = sessionStorage.getItem("user");
 
     if (!token || !userStr) return null;
 
@@ -227,14 +216,14 @@ export const authService = {
    * Kullanıcı giriş yapmış mı?
    */
   isAuthenticated: (): boolean => {
-    return !!localStorage.getItem("accessToken");
+    return !!sessionStorage.getItem("accessToken");
   },
 
   /**
    * Mevcut kullanıcıyı al
    */
   getCurrentUser: (): User | null => {
-    const userStr = localStorage.getItem("user");
+    const userStr = sessionStorage.getItem("user");
     if (!userStr) return null;
 
     try {
@@ -248,7 +237,7 @@ export const authService = {
    * Access token'ı al
    */
   getAccessToken: (): string | null => {
-    return localStorage.getItem("accessToken");
+    return sessionStorage.getItem("accessToken");
   },
 };
 
