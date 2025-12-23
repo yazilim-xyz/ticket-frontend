@@ -32,19 +32,25 @@ const TicketDetailPage: React.FC = () => {
       setIsSavingSolution(false);
     }
   };
+  const safeDate = (v?: string | null) => {
+    if (!v) return "-";
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? "-" : formatDate(v);
+  };
 
 
 
   useEffect(() => {
     const fetchTicket = async () => {
       if (!id) return;
-
       try {
         setLoading(true);
         const data = await ticketService.getTicketById(id);
         setTicket(data);
         if (data) {
           setSelectedStatus(data.status);
+          // ÖNEMLİ: Mevcut çözümü textarea'ya aktar
+          setSolution((data as any).solution || '');
         }
       } catch (error) {
         console.error('Failed to fetch ticket:', error);
@@ -52,10 +58,8 @@ const TicketDetailPage: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchTicket();
   }, [id]);
-
   const handleStatusUpdate = async () => {
     if (!ticket || selectedStatus === ticket.status) return;
 
@@ -139,7 +143,7 @@ const TicketDetailPage: React.FC = () => {
         return `${baseStyle} bg-blue-50 text-blue-700 border-blue-200`;
       case 'in_progress':
         return `${baseStyle} bg-cyan-50 text-cyan-700 border-cyan-200`;
-      case 'completed':
+      case 'resolved':
         return `${baseStyle} bg-emerald-50 text-emerald-700 border-emerald-200`;
       case 'blocked':
         return `${baseStyle} bg-red-50 text-red-700 border-red-200`;
@@ -154,7 +158,7 @@ const TicketDetailPage: React.FC = () => {
         return 'In Progress';
       case 'new':
         return 'Not Started';
-      case 'completed':
+      case 'resolved':
         return 'Done';
       case 'blocked':
         return 'Blocked';
@@ -186,6 +190,9 @@ const TicketDetailPage: React.FC = () => {
         return 'text-gray-500';
     }
   };
+
+
+
 
   const FileIcon: React.FC<{ fileName: string; className?: string }> = ({ fileName, className = '' }) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
@@ -275,7 +282,7 @@ const TicketDetailPage: React.FC = () => {
     { value: 'new', label: 'Not Started' },
     { value: 'in_progress', label: 'In Progress' },
     { value: 'blocked', label: 'Blocked' },
-    { value: 'completed', label: 'Done' }
+    { value: 'resolved', label: 'Done' }
   ];
 
   return (
@@ -370,15 +377,15 @@ const TicketDetailPage: React.FC = () => {
                       Due Date
                     </p>
                     <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {formatDate(ticket.dueDate)}
+                      {safeDate((ticket as any).dueDate)}
                     </p>
                   </div>
                   <div>
                     <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Project
+                      category
                     </p>
                     <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {ticket.project}
+                      {ticket.category}
                     </p>
                   </div>
                   <div>
@@ -392,30 +399,24 @@ const TicketDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Description - READONLY (Admin) */}
+              {/* Description - READONLY for User */}
               <div className={`rounded-lg border p-6 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                    Description
-                  </h3>
-                </div>
-
+                <h3 className="text-lg font-semibold mb-4">Description</h3>
                 <textarea
                   value={ticket.description ?? ""}
-                  readOnly
+                  readOnly // Kullanıcı değiştiremez
                   rows={6}
-                  className={`w-full px-4 py-3 rounded-lg border text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 ${isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-gray-200'
-                    : 'bg-white border-gray-300 text-gray-900'
+                  className={`w-full px-4 py-3 rounded-lg border text-sm leading-relaxed resize-none outline-none ${isDarkMode
+                    ? 'bg-gray-900/50 border-gray-700 text-gray-400'
+                    : 'bg-gray-100 border-gray-200 text-gray-600'
                     }`}
                 />
-
-                <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                  Only admin can update this description.
+                <p className="mt-2 text-xs opacity-50 italic text-red-500">
+                  * This field is read-only. Only the reporter or admin can modify the description.
                 </p>
               </div>
 
-               {/* Attachments */}
+              {/* Attachments */}
               <div className={`rounded-lg border p-5 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -430,8 +431,8 @@ const TicketDetailPage: React.FC = () => {
                   <button
                     onClick={handleAttachmentClick}
                     className={`px-1.5 rounded-lg border transition-colors flex items-center gap-2 ${isDarkMode
-                        ? 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300'
-                        : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
+                      ? 'border-gray-600 bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-700'
                       }`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -475,8 +476,8 @@ const TicketDetailPage: React.FC = () => {
                         <button
                           onClick={() => handleRemoveAttachment(index)}
                           className={`p-1.5 rounded-lg transition-colors ${isDarkMode
-                              ? 'hover:bg-gray-600 text-gray-400 hover:text-red-400'
-                              : 'hover:bg-gray-200 text-gray-500 hover:text-red-600'
+                            ? 'hover:bg-gray-600 text-gray-400 hover:text-red-400'
+                            : 'hover:bg-gray-200 text-gray-500 hover:text-red-600'
                             }`}
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -489,35 +490,32 @@ const TicketDetailPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Solution - USER EDITABLE */}
+              {/* Solution - Editable for User */}
               <div className={`rounded-lg border p-6 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                    Solution
-                  </h3>
-                </div>
-
+                <h3 className="text-lg font-semibold mb-4">Solution</h3>
                 <textarea
                   value={solution}
                   onChange={(e) => setSolution(e.target.value)}
+                  disabled={(ticket.status as any) === 'RESOLVED'} // Bilet bittiyse düzenleme kapansın
+                  placeholder="Write the steps taken to resolve this ticket..."
+                  className={`w-full px-4 py-3 rounded-lg border text-sm leading-relaxed resize-none focus:ring-2 focus:ring-cyan-500 outline-none transition-all ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-gray-200'
+                      : 'bg-white border-gray-300 text-gray-900'
+                    } ${ticket.status === 'RESOLVED' ? 'opacity-60 cursor-not-allowed' : ''}`}
                   rows={6}
-                  placeholder="Write your solution here..."
-                  className={`w-full px-4 py-3 rounded-lg border text-sm leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 ${isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                    }`}
                 />
 
-                <div className="flex gap-2 justify-end mt-3">
-                  <button
-                    onClick={handleSolutionSave}
-                    className={`px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white transition-colors ${isSavingSolution ? "opacity-70 cursor-not-allowed" : ""
-                      }`}
-                    disabled={isSavingSolution}
-                  >
-                    {isSavingSolution ? "Saving..." : "Save"}
-                  </button>
-                </div>
+                {ticket.status !== 'RESOLVED' && (
+                  <div className="flex justify-end mt-4">
+                    <button
+                      onClick={handleSolutionSave}
+                      disabled={isSavingSolution || !solution.trim()}
+                      className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium disabled:opacity-50"
+                    >
+                      {isSavingSolution ? "Saving..." : "Save Solution"}
+                    </button>
+                  </div>
+                )}
               </div>
 
 
@@ -614,25 +612,32 @@ const TicketDetailPage: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* ASSIGNED TO */}
                   <div>
                     <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       ASSIGNED TO:
                     </p>
-                    {ticket.owner && (
+                    {ticket.owner ? (
                       <div className="flex items-center gap-3">
+                        {/* Avatar Kısmı: İsim ve Soyismin ilk harfleri */}
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                          {ticket.owner.fullName.split(' ').map(n => n[0]).join('')}
+                          {`${ticket.owner.firstName?.[0] || ''}${ticket.owner.lastName?.[0] || ''}`.toUpperCase()}
                         </div>
+
+                        {/* İsim Bilgileri */}
                         <div className="min-w-0">
                           <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                            {ticket.owner.fullName}
+                            {`${ticket.owner.firstName} ${ticket.owner.lastName}`}
                           </p>
                           <p className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {ticket.owner.email}
+                            {(ticket.owner as any)?.email}
                           </p>
                         </div>
                       </div>
+                    ) : (
+                      /* Eğer bilet henüz kimseye atanmamışsa gösterilecek durum */
+                      <p className={`text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Not assigned yet
+                      </p>
                     )}
                   </div>
 
