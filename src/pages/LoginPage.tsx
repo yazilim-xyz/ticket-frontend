@@ -7,9 +7,8 @@ import background from '../assets/background.png';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate(); 
-  const location = useLocation();
   const { isDarkMode, toggleTheme } = useTheme();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated ,user} = useAuth();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -18,13 +17,17 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Zaten giriş yapmışsa yönlendir
+  // Zaten giriş yapmışsa role'e göre doğru dashboard'a yönlendir
   useEffect(() => {
-    if (isAuthenticated) {
-      const from = (location.state as any)?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+    if (isAuthenticated && user) {
+      const userRole = user.role?.toUpperCase();
+      if (userRole === 'ADMIN') {
+        navigate('/admin-dashboard', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate, location]);
+  }, [isAuthenticated, user, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
