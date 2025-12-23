@@ -2,22 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
-import { adminMockApi, AdminStats, AdminUser} from '../services/adminMockApi';
+import { adminService, AdminUser } from '../services/adminService';
 import AddUserModal from '../components/modals/AddUserModal';
 import AddDepartmentModal from '../components/modals/AddDepartmentModal';
 import EditUserModal from '../components/modals/EditUserModal';
 import ChangeRoleModal from '../components/modals/ChangeRoleModal';
 import DeleteUserConfirmationModal from '../components/modals/DeleteUserConfirmationModal';
 import UserActionsDropdown from '../components/dropdowns/UserActionsDropdown';
+import Toast from '../components/ui/Toast';
+
+// INTERFACES
+interface ToastMessage {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+}
 
 const UserManagementPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
-  const [stats, setStats] = useState<AdminStats>({
-    totalUsers: 0,
-    totalTickets: 0,
-    pendingApprovals: 0,
-  });
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,17 +34,27 @@ const UserManagementPage: React.FC = () => {
   const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; email: string } | null>(null);
 
+  // Toast notifications
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // TOAST HELPER
+   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsData, usersData] = await Promise.all([
-          adminMockApi.getStats(),
-          adminMockApi.getUsers(),
-        ]);
-        setStats(statsData);
+        const usersData = await adminService.getUsers();
         setUsers(usersData);
       } catch (error) {
         console.error('Failed to fetch data:', error);
+        showToast('Failed to load users. Please refresh the page.', 'error');
       } finally {
         setIsLoading(false);
       }
@@ -50,20 +63,35 @@ const UserManagementPage: React.FC = () => {
     fetchData();
   }, []);
 
+  // EVENT HANDLERS
   const handleToggleStatus = async (userId: string) => {
     try {
-      const updatedUser = await adminMockApi.toggleUserStatus(userId);
+      const updatedUser = await adminService.toggleUserStatus(userId);
       setUsers(users.map(u => u.id === userId ? updatedUser : u));
-      
-      // Update stats and logs
-      const statsData = await adminMockApi.getStats();
-      setStats(statsData);
-    } catch (error) {
+      showToast(
+        `User ${updatedUser.status === 'active' ? 'approved' : 'set to waitlist'} successfully`,
+        'success'
+      );
+    } catch (error: any) {
       console.error('Failed to toggle status:', error);
+
+      // Parse backend error
+      let errorMessage = 'Failed to update user status';
+      if (error?.message?.includes('404')) {
+        errorMessage = 'User not found';
+      } else if (error?.message?.includes('403')) {
+      errorMessage = 'You do not have permission to change user status';
+      } else if (error?.message?.includes('500')) {
+        errorMessage = 'Server error. Please try again later';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+    
+      showToast(errorMessage, 'error');
     }
+
   };
-
-
+  
   const handleAddUser = async (userData: {
     fullName: string;
     email: string;
@@ -72,24 +100,47 @@ const UserManagementPage: React.FC = () => {
     role: 'admin' | 'user';
   }) => {
     try {
-      const newUser = await adminMockApi.addUser(userData);
+      const newUser = await adminService.addUser(userData);
       setUsers([...users, newUser]);
-      
-      // Update stats and logs
-      const statsData = await adminMockApi.getStats();
-      setStats(statsData);
       setIsAddUserModalOpen(false);
-    } catch (error) {
+      showToast(`User "${userData.fullName}" created successfully`, 'success');
+    } catch (error: any) {
       console.error('Failed to add user:', error);
+
+      // Parse backend error
+      let errorMessage = 'Failed to create user';
+      
+      if (error.message.includes('already exists') || error.message.includes('duplicate')) {
+        errorMessage = `Email "${userData.email}" is already registered`;
+      } else if (error.message.includes('400')) {
+        errorMessage = 'Invalid user data. Please check all fields';
+      } else if (error.message.includes('403')) {
+        errorMessage = 'You do not have permission to create users';
+      } else if (error.message.includes('500')) {
+        errorMessage = 'Server error. Please try again later';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      showToast(errorMessage, 'error');
+      // Modal açık kalır - kullanıcı düzeltme yapabilir
     }
   };
 
   const handleAddDepartment = async (departmentName: string) => {
     try {
-      await adminMockApi.addDepartment(departmentName);
+      await adminService.addDepartment(departmentName);
       setIsAddDepartmentModalOpen(false);
-    } catch (error) {
+      showToast(`Department "${departmentName}" created successfully`, 'success');
+    } catch (error: any) {
       console.error('Failed to add department:', error);
+
+      let errorMessage = 'Failed to create department';
+      if (error.message.includes('already exists')) {
+        errorMessage = `Department "${departmentName}" already exists`;
+      }
+      
+      showToast(errorMessage, 'error');
     }
   };
 
@@ -98,18 +149,27 @@ const UserManagementPage: React.FC = () => {
     setIsEditUserModalOpen(true);
   };
 
-    const handleEditUserSubmit = async (userId: string, userData: {
-        fullName: string;
-        email: string;
-        department: string;
-        position: string;
+  const handleEditUserSubmit = async (userId: string, userData: {
+      fullName: string;
+      email: string;
+      department: string;
+      position: string;
     }) => {
-    try {
-        const updatedUser = await adminMockApi.editUser(userId, userData);
+      try {
+        const updatedUser = await adminService.editUser(userId, userData);
         setUsers(users.map(u => u.id === userId ? updatedUser : u));
         setIsEditUserModalOpen(false);
-    } catch (error) {
+        showToast(`User "${userData.fullName}" updated successfully`, 'success');
+    } catch (error: any) {
         console.error('Failed to edit user:', error);
+        let errorMessage = 'Failed to update user';
+        if (error.message.includes('404')) {
+          errorMessage = 'User not found';
+        } else if (error.message.includes('403')) {
+          errorMessage = 'You do not have permission to edit this user';
+        }
+      
+      showToast(errorMessage, 'error');
     }
   };
 
@@ -120,12 +180,19 @@ const UserManagementPage: React.FC = () => {
 
   const handleChangeRoleSubmit = async (userId: string, newRole: 'admin' | 'user') => {
     try {
-        const updatedUser = await adminMockApi.changeUserRole(userId, newRole);
+        const updatedUser = await adminService.changeUserRole(userId, newRole);
         setUsers(users.map(u => u.id === userId ? updatedUser : u));
         setIsChangeRoleModalOpen(false);
-    } catch (error) {
+        showToast(`User role changed to "${newRole}" successfully`, 'success');
+    } catch (error: any) {
         console.error('Failed to change role:', error);
-    }
+        let errorMessage = 'Failed to change user role';
+        if (error.message.includes('403')) {
+          errorMessage = 'You do not have permission to change user roles';
+        }
+      
+        showToast(errorMessage, 'error');
+      }
     };
 
   const handleDeleteUser = (userId: string, userName: string, userEmail: string) => {
@@ -137,27 +204,45 @@ const UserManagementPage: React.FC = () => {
     if (!userToDelete) return;
 
     try {
-      await adminMockApi.deleteUser(userToDelete.id);
-      const updatedUsers = await adminMockApi.getUsers();
-      setUsers(updatedUsers);
-    
-      const statsData = await adminMockApi.getStats();
-      setStats(statsData);
-    
+      await adminService.deleteUser(userToDelete.id);
+
+      // Listeden kaldır (backend'den tekrar fetch etmeden)
+      setUsers(users.filter(u => u.id !== userToDelete.id));
       setUserToDelete(null);
-    } catch (error) {
+      setIsDeleteUserModalOpen(false);
+
+      //  Success toast
+      showToast(`User "${userToDelete.name}" deleted successfully`, 'success');
+    
+    } catch (error: any) {
       console.error('Failed to delete user:', error);
+      setIsDeleteUserModalOpen(false);
+
+      // Hata mesajını parse et
+      let errorMessage = 'Failed to delete user';
+    
+      if (error?.message?.includes('404')) {
+        errorMessage = 'User not found';
+      } else if (error?.message?.includes('403')) {
+        errorMessage = 'You do not have permission to delete this user';
+      } else if (error?.message?.includes('500')) {
+        errorMessage = 'Server error. Please try again later';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+    
+      showToast(errorMessage, 'error');
     }
   };
 
   const scrollToUserManagementTable = () => {
-    const element = document.getElementById('user-management');
+    const element = document.getElementById('user-management-table');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
-  // Filter users
+  // FILTERING
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -170,6 +255,7 @@ const UserManagementPage: React.FC = () => {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  // STYLING HELPERS
   const getRoleBadgeClass = (role: 'admin' | 'user') => {
     if (role === 'admin') {
       return isDarkMode 
@@ -231,77 +317,6 @@ const UserManagementPage: React.FC = () => {
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto px-6 py-3">
-          {/* Statistics Cards */}
-          {isLoading ? (
-            <div className="grid grid-cols-3 gap-6 mb-8">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                  <div className="h-12 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
-                  <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-6 mb-3">
-              {/* Total Users Card */}
-              <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className={`text-2xl font-semibold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {stats.totalUsers}
-                    </h3>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Total Users
-                    </p>
-                  </div>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
-                    <svg className={`w-6 h-6 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Total Tickets Card */}
-              <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className={`text-2xl font-semibold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {stats.totalTickets}
-                    </h3>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Total Tickets <span className="text-xs">(This Month)</span>
-                    </p>
-                  </div>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-teal-900/30' : 'bg-teal-100'}`}>
-                    <svg className={`w-6 h-6 ${isDarkMode ? 'text-teal-400' : 'text-teal-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pending Approvals Card */}
-              <div className={`p-6 rounded-xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className={`text-2xl font-semibold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {stats.pendingApprovals}
-                    </h3>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Pending Approvals
-                    </p>
-                  </div>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-orange-900/30' : 'bg-orange-100'}`}>
-                    <svg className={`w-6 h-6 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* User Table Section */}
           <div id="user-management-table" className={`rounded-xl border mb-8 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             {/* Section Header */}
@@ -385,104 +400,110 @@ const UserManagementPage: React.FC = () => {
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className={`border-b ${isDarkMode ? 'border-gray-700 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Full Name
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Email
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Department
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Position
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Role
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Approval Status
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Registration Date
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className={`transition-colors ${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'}`}>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                        {user.fullName}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {user.email}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        <span className={`px-2 py-1 rounded-md text-xs ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                          {user.department}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {user.position}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
-                        <span className={`px-2 py-1 rounded-md text-xs font-medium border ${getRoleBadgeClass(user.role)}`}>
-                          {user.role.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
-                        <button
-                          onClick={() => handleToggleStatus(user.id)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            user.status === 'active' 
-                              ? 'bg-teal-600' 
-                              : isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
-                          }`}
-                          title={user.status === 'active' ? 'Approved - Click to set waitlisted' : 'Waitlisted - Click to approve'}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              user.status === 'active' ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {user.registrationDate}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
-                        <UserActionsDropdown
-                          userId={user.id}
-                          userName={user.fullName}
-                          userEmail={user.email}
-                          userStatus={user.status}
-                          onEdit={() => handleEditUser(user)}
-                          onChangeRole={() => handleChangeRole(user)}
-                          onToggleStatus={() => handleToggleStatus(user.id)}
-                          onDelete={() => handleDeleteUser(user.id, user.fullName, user.email)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <div className="overflow-x-auto">
+                            {isLoading ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+                                </div>
+                            ) : (
+                                <table className="w-full">
+                                    <thead>
+                                    <tr className={`border-b ${isDarkMode ? 'border-gray-700 bg-gray-750' : 'border-gray-200 bg-gray-50'}`}>
+                                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Full Name
+                                        </th>
+                                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Email
+                                        </th>
+                                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Department
+                                        </th>
+                                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Position
+                                        </th>
+                                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Role
+                                        </th>
+                                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Approval Status
+                                        </th>
+                                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Registration Date
+                                        </th>
+                                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                            Actions
+                                        </th>
+                                    </tr>
+                                    </thead>
+                                    <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                                    {filteredUsers.map((user) => (
+                                        <tr key={user.id} className={`transition-colors ${isDarkMode ? 'hover:bg-gray-750' : 'hover:bg-gray-50'}`}>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                                                {user.fullName}
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                {user.email}
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          <span className={`px-2 py-1 rounded-md text-xs ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                            {user.department}
+                          </span>
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                {user.position}
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
+                          <span className={`px-2 py-1 rounded-md text-xs font-medium border ${getRoleBadgeClass(user.role)}`}>
+                            {user.role.toUpperCase()}
+                          </span>
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
+                                                <button
+                                                    onClick={() => handleToggleStatus(user.id)}
+                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                                        user.status === 'active'
+                                                            ? 'bg-teal-600'
+                                                            : isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
+                                                    }`}
+                                                    title={user.status === 'active' ? 'Approved - Click to set waitlisted' : 'Waitlisted - Click to approve'}
+                                                >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    user.status === 'active' ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                            />
+                                                </button>
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                {user.registrationDate}
+                                            </td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
+                                                <UserActionsDropdown
+                                                    userId={user.id}
+                                                    userName={user.fullName}
+                                                    userEmail={user.email}
+                                                    userStatus={user.status}
+                                                    onEdit={() => handleEditUser(user)}
+                                                    onChangeRole={() => handleChangeRole(user)}
+                                                    onToggleStatus={() => handleToggleStatus(user.id)}
+                                                    onDelete={() => handleDeleteUser(user.id, user.fullName, user.email)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            )}
 
-              {filteredUsers.length === 0 && (
-                <div className="text-center py-12">
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    No users found matching your criteria.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+                            {!isLoading && filteredUsers.length === 0 && (
+                              <div className="text-center py-12">
+                                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  No users found matching your criteria.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
 
           {/* Quick Actions Grid */}
           <div className="mb-8">
@@ -640,6 +661,17 @@ const UserManagementPage: React.FC = () => {
         onSubmit={handleChangeRoleSubmit}
         user={selectedUser}
        />
+
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 };

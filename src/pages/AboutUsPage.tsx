@@ -28,7 +28,7 @@ const AboutUsPage: React.FC = () => {
         { name: "Vedat Ali Tatlı", initials: "VAT" },
         { name: "Yelda Delidoğan", initials: "YD" },
         { name: "Furkan Mete Çalış", initials: "FMÇ" },
-        { name: "Nisa Öztürk", initials: "NÖ" },
+        { name: "Fadimana Nisa Öztürk", initials: "FNÖ" },
         { name: "Ezgi Yücel", initials: "EY" },
         { name: "Beyda Ertek", initials: "BE" },
         { name: "Özge Nur Kök", initials: "ÖNK" },

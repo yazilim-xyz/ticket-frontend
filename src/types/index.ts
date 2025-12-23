@@ -2,7 +2,8 @@
 export interface User {
   id: string;
   email: string;
-  fullName: string;
+  firstName: string;
+  lastName:string;
   department: string;
   role: 'admin' | 'user';
   profilePhoto?: string;
@@ -11,14 +12,14 @@ export interface User {
 }
 
 // Ticket Types
-export type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
-export type TicketStatus = 'new' | 'in_progress' | 'completed' | 'blocked';
+export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'CANCELLED';
 
 export interface Ticket {
   id: string;
   title: string; // TCK-123
   description: string;
-  project: string;
+  category: string;
   priority: TicketPriority;
   status: TicketStatus;
   assignedTo: string; // User ID
@@ -26,9 +27,17 @@ export interface Ticket {
   createdAt: string;
   dueDate: string;
   updatedAt: string;
-  owner?: User;
-  assignee?: User;
+  solution?: string;
+  owner?: {
+    firstName: string;
+    lastName: string;
+  }
+  assignee?:{
+    firstName: string;
+    lastName: string;
+  }
   attachments?: string[];
+  email: string;
 }
 
 // Statistics Types
@@ -75,7 +84,8 @@ export interface LoginCredentials {
 }
 
 export interface RegisterData {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   department: string;
   password: string;

@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
-import { usePermissions } from '../context/PermissionsContext';
 import { useTickets } from '../hooks/useTickets';
 import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
 import UpdateAssignmentModal from '../components/modals/UpdateAssignmentModal';
 import DeleteConfirmationModal from '../components/modals/DeleteConfirmationModal';
-import { ticketService } from '../services/ticketService';
+import { ticketService, TicketStatus } from '../services/ticketService';
 import { Ticket } from '../types';
 
 const AllTicketsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
-  const { hasPermission } = usePermissions();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -29,15 +27,7 @@ const AllTicketsPage: React.FC = () => {
   // No userId - Admin sees all tickets
   const { tickets, loading, deleteTicket, refetch } = useTickets();
 
-  // Check permission
-  const canDeleteTickets = hasPermission('Create & Delete Tickets');
-
   const handleDelete = async (ticketId: string) => {
-    if (!canDeleteTickets) {
-      alert('You do not have permission to delete tickets. Please enable "Create & Delete Tickets" in Admin Panel permissions.');
-      return;
-    }
-
     // Find ticket and open confirmation modal
     const ticket = tickets.find(t => t.id === ticketId);
     if (ticket) {
@@ -78,7 +68,7 @@ const AllTicketsPage: React.FC = () => {
 
   const handleStatusUpdate = async (ticketId: string, newStatus: string) => {
     try {
-      await ticketService.updateTicket(ticketId, { status: newStatus as any });
+      await ticketService.updateTicketStatus(parseInt(ticketId), newStatus as TicketStatus);
       await refetch(); // Refresh ticket list
       setIsStatusModalOpen(false);
       setSelectedTicket(null);
@@ -90,8 +80,8 @@ const AllTicketsPage: React.FC = () => {
 
   const handleAssignmentUpdate = async (ticketId: string, newAssigneeId: string) => {
     try {
-      await ticketService.updateTicket(ticketId, { assignedTo: newAssigneeId });
-      await refetch(); // Refresh ticket list
+      await ticketService.assignTicket(parseInt(ticketId), parseInt(newAssigneeId));
+      await refetch();  // Refresh ticket list
       setIsAssignmentModalOpen(false);
       setSelectedTicket(null);
     } catch (error) {
@@ -285,7 +275,7 @@ const AllTicketsPage: React.FC = () => {
             onUpdateStatus={handleUpdateStatus}
             onUpdateAssignment={handleUpdateAssignment}
             userRole="admin"
-            canDelete={canDeleteTickets}
+            canDelete={true}
           />
         </div>
       </div>
