@@ -7,14 +7,13 @@ import { Ticket } from "../types";
 type ChartType = "pie" | "bar";
 
 type StatusBucket = {
-  notStarted: number;
-  inProgress: number;
-  done: number;
-  deleted: number;
+  open: number;        
+  inProgress: number;  
+  resolved: number;    
+  deleted: number;     
 };
-
 const getAssigneeLabel = (t: Ticket): string => {
-  if (t.owner?.fullName) return t.owner.fullName;
+  if (t.owner?.firstName) return t.owner.lastName;
   if (t.assignee) return String(t.assignee);
   if (t.assignedTo) return String(t.assignedTo);
   return "Unassigned";
@@ -102,17 +101,20 @@ const PerformancePage: React.FC = () => {
     return data;
   }, [tickets, selectedPerson, selectedDate]);
 
-  const buckets: StatusBucket = useMemo(() => {
-    const b: StatusBucket = { notStarted: 0, inProgress: 0, done: 0, deleted: 0 };
-    for (const t of filteredTickets) {
-      const st = normalizeStatus(t);
-      if (st === "deleted") b.deleted += 1;
-      else if (st === "done") b.done += 1;
-      else if (st === "in_progress") b.inProgress += 1;
-      else b.notStarted += 1;
-    }
-    return b;
-  }, [filteredTickets]);
+const buckets: StatusBucket = useMemo(() => {
+  // İlk değerleri yeni isimlere göre veriyoruz
+  const b: StatusBucket = { open: 0, inProgress: 0, resolved: 0, deleted: 0 };
+  
+  for (const t of filteredTickets) {
+    const st = normalizeStatus(t); // Bu fonksiyonu demin RESOLVED/OPEN için düzeltmiştik
+    
+    if (st === "deleted") b.deleted += 1;
+    else if (st === "done") b.resolved += 1;      // normalizeStatus "done" dönüyorsa resolved'a ekle
+    else if (st === "in_progress") b.inProgress += 1;
+    else b.open += 1;                             // normalizeStatus "new" dönüyorsa open'a ekle
+  }
+  return b;
+}, [filteredTickets]);
 
   const overdueCount = useMemo(() => {
     const now = new Date().getTime();
