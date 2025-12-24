@@ -4,7 +4,7 @@ const API_BASE_URL = 'http://localhost:8081';
 
 // Get token from localStorage
 const getAuthToken = (): string | null => {
-  const token = localStorage.getItem('accessToken');
+  const token = sessionStorage.getItem('accessToken');
   return token;
 };
 
@@ -110,7 +110,7 @@ export const settingsApi = {
 
   // Get current user info (from AuthContext or localStorage)
   getCurrentUser: (): UserProfile | null => {
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (userStr) {
       try {
         return JSON.parse(userStr);
@@ -126,7 +126,7 @@ export const settingsApi = {
     const currentUser = settingsApi.getCurrentUser();
     if (currentUser) {
       const updatedUser = { ...currentUser, ...userData };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('user', JSON.stringify(updatedUser));
     }
   }
 };

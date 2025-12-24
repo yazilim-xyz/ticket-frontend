@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Ticket, ticketService} from '../services/ticketService';
+import { ticketService } from '../services/ticketService';
+import type { Ticket } from '../types';
 
 interface UseTicketsOptions {
   userId?: number; // If provided, filter tickets by assigned user
@@ -35,17 +36,29 @@ export const useTickets = (options: UseTicketsOptions = {}): UseTicketsReturn =>
 
       // Fetch all tickets from admin endpoint
       const data = await ticketService.getTickets();
-       console.log('📋 Fetched:', data.length, 'tickets');
+      console.log('📋 Fetched:', data.length, 'tickets');
 
       // If userId is provided, filter tickets assigned to that user
       if (userId) {
-        const currentUserEmail = (localStorage.getItem('userEmail') || '').toLowerCase();
-        const currentUserName = `${localStorage.getItem('name') || ''} ${localStorage.getItem('surname') || ''}`.trim().toLowerCase();
+        // FIX: localStorage yerine sessionStorage kullan
+        const userStr = sessionStorage.getItem('user');
+        let currentUserEmail = '';
+        let currentUserName = '';
         
-        const filteredTickets = data.filter(ticket => {
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            currentUserEmail = (user.email || '').toLowerCase();
+            currentUserName = `${user.Name || ''} ${user.Surname || ''}`.trim().toLowerCase();
+          } catch (e) {
+            console.error('Error parsing user from sessionStorage:', e);
+          }
+        }
+        
+        const filteredTickets = data.filter((ticket: Ticket) => {
           // Check if ticket is assigned to this user
-          const assignedTo = (ticket.assignedTo || '').toLowerCase();
-          const owner = (ticket.owner || '').toLowerCase();
+          const assignedTo = ((ticket as any).assignedTo || '').toLowerCase();
+          const owner = ((ticket as any).owner || '').toLowerCase();
           
           return (
             (currentUserEmail && assignedTo.includes(currentUserEmail)) ||
@@ -54,7 +67,7 @@ export const useTickets = (options: UseTicketsOptions = {}): UseTicketsReturn =>
           );
         });
         
-        console.log(` Filtered tickets for user ${userId}:`, filteredTickets.length);
+        console.log(`🔍 Filtered tickets for user ${userId}:`, filteredTickets.length);
         setTickets(filteredTickets);
       } else {
         // Admin - show all tickets
@@ -79,8 +92,8 @@ export const useTickets = (options: UseTicketsOptions = {}): UseTicketsReturn =>
 
   const deleteTicket = async (id: string) => {
     try {
-      await ticketService.deleteTicket(parseInt(id));
-      setTickets(prev => prev.filter(t => t.id !== id));
+      await ticketService.deleteTicket(id);
+      setTickets(prev => prev.filter(t => String(t.id) !== id));
     } catch (err) {
       console.error('Error deleting ticket:', err);
       throw err;

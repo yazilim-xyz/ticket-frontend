@@ -15,7 +15,7 @@ export interface ChatSession {
 
 // Backend'e mesaj gönder ve Gemini'den cevap al
 export const sendMessageToBackend = async (message: string): Promise<string> => {
-  const token = localStorage.getItem("accessToken");
+  const token = sessionStorage.getItem("accessToken");
   
   const response = await fetch(`${API_BASE_URL}/chatbot/ask`, {
     method: "POST",

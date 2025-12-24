@@ -3,7 +3,26 @@ import type { Ticket } from "../types";
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8081";
 
 function getAuthToken(): string | null {
-  return localStorage.getItem("accessToken");
+  return sessionStorage.getItem("accessToken");
+}
+
+// Kullanıcı rolünü al
+function getUserRole(): string | null {
+  const userStr = sessionStorage.getItem("user");
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      return user.role?.toUpperCase() || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+// Admin mi kontrol et
+function isAdmin(): boolean {
+  return getUserRole() === 'ADMIN';
 }
 
 async function readErrorText(res: Response): Promise<string> {
@@ -67,29 +86,46 @@ async function authenticatedFetch(
 
 class TicketService {
   /* =======================
-     GET ALL / USER TICKETS
+     GET ALL TICKETS
+     Admin: GET /api/admin/tickets (tüm ticket'lar)
+     User: GET /api/tickets (kendi ticket'ları)
   ======================= */
   async getTickets(userId?: string): Promise<Ticket[]> {
-    const url = userId
-      ? `${API_BASE_URL}/api/tickets?userId=${encodeURIComponent(userId)}`
+    // Role'e göre endpoint seç
+    const endpoint = isAdmin() 
+      ? `${API_BASE_URL}/api/admin/tickets`
       : `${API_BASE_URL}/api/tickets`;
+    
+    const url = userId
+      ? `${endpoint}?userId=${encodeURIComponent(userId)}`
+      : endpoint;
+
+    console.log(`📋 Fetching tickets from: ${url} (isAdmin: ${isAdmin()})`);
 
     const res = await authenticatedFetch(url, { method: "GET" });
-    return res.json();
+    const data = await res.json();
+    
+    // Backend paginated response döndürüyorsa content'i al
+    const tickets = data.content || data;
+    console.log(`✅ Fetched ${tickets.length} tickets`);
+    
+    return tickets;
   }
 
   /* =======================
      GET TICKET BY ID
+     Admin: GET /api/admin/tickets/{id}
   ======================= */
   async getTicketById(id: string): Promise<Ticket> {
-    const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}`;
-    const res = await authenticatedFetch(url, { method: "GET" });
+    const endpoint = `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}`;
+    const res = await authenticatedFetch(endpoint, { method: "GET" });
     return res.json();
   }
 
   /* =======================
      CREATE TICKET
-     ✅ createdById kaldırıldı (JWT’den gelecek)
+     Admin: POST /api/admin/tickets
+     User: POST /api/tickets
   ======================= */
   async createTicket(payload: {
     title: string;
@@ -97,20 +133,28 @@ class TicketService {
     priority: "HIGH" | "MEDIUM" | "LOW" | "CRITICAL";
     category?: "BUG" | "FEATURE" | "SUPPORT" | "OTHER";
   }): Promise<Ticket> {
-    const url = `${API_BASE_URL}/api/tickets`;
-    const res = await authenticatedFetch(url, {
+    const endpoint = isAdmin()
+      ? `${API_BASE_URL}/api/admin/tickets`
+      : `${API_BASE_URL}/api/tickets`;
+    
+    const res = await authenticatedFetch(endpoint, {
       method: "POST",
       body: JSON.stringify(payload),
     });
     return res.json();
   }
-    /* =======================
+
+  /* =======================
      ASSIGN TICKET
-     PATCH /api/tickets/{id}/assign
+     Admin: PATCH /api/admin/tickets/{id}/assign
+     User: PATCH /api/tickets/{id}/assign
   ======================= */
   async assignTicket(id: string, assignedToId: number): Promise<Ticket> {
-    const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/assign`;
-    const res = await authenticatedFetch(url, {
+    const endpoint = isAdmin()
+      ? `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}/assign`
+      : `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/assign`;
+    
+    const res = await authenticatedFetch(endpoint, {
       method: "PATCH",
       body: JSON.stringify({ assignedToId }),
     });
@@ -119,61 +163,107 @@ class TicketService {
 
   /* =======================
      GET ALL USERS (Dropdown için)
+     Admin endpoint kullan
   ======================= */
   async getUsers(): Promise<{ id: number; fullName: string; role?: string }[]> {
-    const url = `${API_BASE_URL}/api/users`; // Backend endpoint'in neyse onu yaz (örn: /api/users veya /api/auth/users)
+    const url = `${API_BASE_URL}/api/admin/users`;
     const res = await authenticatedFetch(url, { method: "GET" });
-    return res.json();
+    const data = await res.json();
+    return data.content || data;
   }
 
   /* =======================
-     UPDATE TICKET
+     UPDATE TICKET STATUS
+     Admin: PATCH /api/admin/tickets/{id}/status
+     User: PATCH /api/tickets/{id}/status
   ======================= */
- async updateTicket(id: string, data: Partial<Ticket>): Promise<any> {
+  async updateTicketStatus(id: string, status: string): Promise<any> {
+    const endpoint = isAdmin()
+      ? `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}/status`
+      : `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/status`;
 
-  // 1️⃣ STATUS UPDATE → PATCH /{id}/status
-  if (data.status) {
-    const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/status`;
-
-    const res = await authenticatedFetch(url, {
+    const res = await authenticatedFetch(endpoint, {
       method: "PATCH",
       body: JSON.stringify({
-        status: String(data.status).toUpperCase(),
+        status: String(status).toUpperCase(),
       }),
     });
 
     return res.json();
   }
 
-  // 2️⃣ ASSIGN UPDATE → PATCH /{id}/assign (ileride)
-  if (data.assignedTo || data.assignee || data.owner) {
-    const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/assign`;
+  /* =======================
+     UPDATE TICKET (generic)
+  ======================= */
+  async updateTicket(id: string, data: Partial<Ticket>): Promise<any> {
+    // STATUS UPDATE
+    if (data.status) {
+      return this.updateTicketStatus(id, data.status);
+    }
 
-    const assignedToId =
-      (data as any).assignedToId ??
-      (data as any).assignedTo ??
-      (data as any).assignee?.id ??
-      (data as any).owner?.id;
+    // ASSIGN UPDATE
+    if ((data as any).assignedTo || (data as any).assignee || (data as any).owner) {
+      const endpoint = isAdmin()
+        ? `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}/assign`
+        : `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/assign`;
 
-    const res = await authenticatedFetch(url, {
-      method: "PATCH",
-      body: JSON.stringify({ assignedToId }),
-    });
+      const assignedToId =
+        (data as any).assignedToId ??
+        (data as any).assignedTo ??
+        (data as any).assignee?.id ??
+        (data as any).owner?.id;
 
+      const res = await authenticatedFetch(endpoint, {
+        method: "PATCH",
+        body: JSON.stringify({ assignedToId }),
+      });
+
+      return res.json();
+    }
+
+    throw new Error("Bu update işlemi için backend endpoint henüz yok.");
+  }
+
+  /* =======================
+     DELETE TICKET
+     Admin: DELETE /api/admin/tickets/{id}
+  ======================= */
+  async deleteTicket(id: string): Promise<void> {
+    const url = `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}`;
+    await authenticatedFetch(url, { method: "DELETE" });
+  }
+
+  /* =======================
+     GET COMMENTS
+     GET /api/tickets/{id}/comments
+  ======================= */
+  async getComments(ticketId: string): Promise<any[]> {
+    const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(ticketId)}/comments`;
+    const res = await authenticatedFetch(url, { method: "GET" });
     return res.json();
   }
 
-  throw new Error("Bu update işlemi için backend endpoint henüz yok.");
-}
-
-
-  /* =======
-  ================
-     DELETE TICKET
+  /* =======================
+     ADD COMMENT
+     POST /api/tickets/{id}/comments
   ======================= */
-  async deleteTicket(id: string): Promise<void> {
-    const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}`;
-    await authenticatedFetch(url, { method: "DELETE" });
+  async addComment(ticketId: string, comment: string): Promise<any> {
+    const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(ticketId)}/comments`;
+    const res = await authenticatedFetch(url, {
+      method: "POST",
+      body: JSON.stringify({ comment }),
+    });
+    return res.json();
+  }
+
+  /* =======================
+     TOP RESOLVERS (Analytics)
+     GET /api/tickets/analytics/top-resolvers
+  ======================= */
+  async getTopResolvers(): Promise<any[]> {
+    const url = `${API_BASE_URL}/api/tickets/analytics/top-resolvers`;
+    const res = await authenticatedFetch(url, { method: "GET" });
+    return res.json();
   }
 
   /* =======================

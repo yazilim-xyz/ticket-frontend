@@ -34,7 +34,8 @@ const CalendarYearView: React.FC<CalendarYearViewProps> = ({
   // Check if date has events
   const hasEventsOnDate = (month: number, day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return events.some(event => event.date === dateStr);
+    // FIX: startsWith kullan - backend datetime döndürüyor (2025-12-24T10:30:00)
+    return events.some(event => event.date && event.date.startsWith(dateStr));
   };
 
   return (

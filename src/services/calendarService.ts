@@ -11,39 +11,38 @@ class CalendarService {
   /**
    * Belirtilen yıl ve ay için calendar event'lerini getir
    * 
-   *  Parametreler: Yıl (örn: 2025) - Ay (1-12, 1 = Ocak)
-   *  Return: CalendarEvent array
+   * Parametreler: Yıl (örn: 2025) - Ay (1-12, 1 = Ocak)
+   * Return: CalendarEvent array
    */
-    async getEvents(year: number, month: number): Promise<CalendarEvent[]> {
+  async getEvents(year: number, month: number): Promise<CalendarEvent[]> {
     try {
       console.log(`📅 Fetching calendar events for ${year}-${month}`);
       
-      // Admin tickets endpoint'ini kullan
-      const response = await apiClient.get('/admin/tickets', {
+      const response = await apiClient.get('/api/admin/tickets', {
         params: {
           page: 0,
           size: 1000,
-          sort: 'dueDate,asc'
+          sort: 'createdAt,asc'
         }
       });
 
-      // Backend response'u normalize et (content array veya direkt array olabilir)
       const tickets = response.data.content || response.data;
       
       console.log(`📥 Received ${tickets.length} tickets from backend`);
       
-      // Ay ve yıla göre filtrele
+      // Ay ve yıla göre filtrele - dueDate yoksa createdAt kullan
       const filteredEvents = tickets
         .filter((ticket: any) => {
-          if (!ticket.dueDate) {
-            return false; // dueDate olmayan ticket'ları atla
+          const dateField = ticket.dueDate || ticket.createdAt;
+          if (!dateField) {
+            return false;
           }
           
-          const dueDate = new Date(ticket.dueDate);
-          const matchesYear = dueDate.getFullYear() === year;
-          const matchesMonth = dueDate.getMonth() === month - 1; // month is 1-indexed, JS Date is 0-indexed
+          const eventDate = new Date(dateField);
+          const ticketYear = eventDate.getFullYear();
+          const ticketMonth = eventDate.getMonth() + 1;
           
-          return matchesYear && matchesMonth;
+          return ticketYear === year && ticketMonth === month;
         })
         .map((ticket: any) => this.mapTicketToEvent(ticket));
 
@@ -52,11 +51,6 @@ class CalendarService {
       return filteredEvents;
     } catch (error: any) {
       console.error('❌ Error fetching calendar events:', error);
-      console.error('Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       throw new Error('Failed to fetch calendar events');
     }
   }
@@ -70,8 +64,8 @@ class CalendarService {
       ticketId: `TCK-${ticket.id}`,
       title: ticket.title || 'Untitled',
       description: ticket.description || '',
-      date: ticket.dueDate, // ISO format: "2025-12-17T00:00:00"
-      type: 'ticket', // Her zaman ticket (task, deadline gibi diğer tipler yok)
+      date: ticket.dueDate || ticket.createdAt, // dueDate yoksa createdAt kullan
+      type: 'ticket',
       priority: this.normalizePriority(ticket.priority),
       status: this.mapStatus(ticket.status),
       assignedTo: this.formatAssignedTo(ticket),
@@ -81,17 +75,17 @@ class CalendarService {
   }
 
   /**
-   * Priority'yi normalize et (HIGH → high)
+   * Priority'yi normalize et (HIGH → High)
    */
-  private normalizePriority(priority: string): 'high' | 'medium' | 'low' {
+  private normalizePriority(priority: string): 'High' | 'Medium' | 'Low' {
     const normalized = priority?.toLowerCase();
     if (normalized === 'high' || normalized === 'critical' || normalized === 'urgent') {
-      return 'high';
+      return 'High';
     }
     if (normalized === 'low' || normalized === 'minor') {
-      return 'low';
+      return 'Low';
     }
-    return 'medium'; // Default
+    return 'Medium';
   }
 
   /**
@@ -113,17 +107,17 @@ class CalendarService {
    * Priority'ye göre renk döndür
    */
   private getPriorityColor(priority: string): string {
-  const normalized = priority?.toUpperCase();
-  
-  const colorMap: Record<string, string> = {
-    'CRITICAL': '#8b5cf6',  //  Mor
-    'HIGH': '#ef4444',      //  Kırmızı
-    'MEDIUM': '#f97316',    //  Turuncu
-    'LOW': '#10b981'        //  Yeşil
-  };
-  
-  return colorMap[normalized] || '#06b6d4';//  Cyan
-}
+    const normalized = priority?.toUpperCase();
+    
+    const colorMap: Record<string, string> = {
+      'CRITICAL': '#8b5cf6',  // Mor
+      'HIGH': '#ef4444',      // Kırmızı
+      'MEDIUM': '#f97316',    // Turuncu
+      'LOW': '#10b981'        // Yeşil
+    };
+    
+    return colorMap[normalized] || '#06b6d4'; // Cyan
+  }
 
   /**
    * assignedTo bilgisini formatla
@@ -149,13 +143,13 @@ class CalendarService {
 
   /**
    * Event'i "Done" olarak işaretle
-   * 
    */
   async markAsDone(eventId: string): Promise<void> {
     try {
       console.log(`✅ Marking ticket ${eventId} as RESOLVED`);
       
-      await apiClient.patch(`/admin/tickets/${eventId}/status`, {
+      // FIX: /admin/tickets -> /api/admin/tickets
+      await apiClient.patch(`/api/admin/tickets/${eventId}/status`, {
         status: 'RESOLVED'
       });
       
@@ -179,12 +173,12 @@ class CalendarService {
     try {
       console.log('➕ Creating new ticket:', event);
       
-      // Backend ticket create endpoint'i kullan
-      const response = await apiClient.post('/admin/tickets', {
+      // FIX: /admin/tickets -> /api/admin/tickets
+      const response = await apiClient.post('/api/admin/tickets', {
         title: event.title,
         description: event.description,
-        priority: event.priority.toUpperCase(), // high → HIGH
-        category: event.tags[0] || 'GENERAL',
+        priority: (event.priority || 'MEDIUM').toUpperCase(), // high → HIGH
+        category: (event.tags && event.tags[0]) ? event.tags[0] : 'GENERAL',
         dueDate: event.date,
         // assignedToId gerekirse eklenebilir
       });

@@ -1,4 +1,3 @@
-
 import SockJS from "sockjs-client";
 import { Client, IMessage } from "@stomp/stompjs";
 
@@ -56,12 +55,14 @@ const API_BASE_URL = "http://localhost:8081"; // Backend URL
 const WS_URL = `${API_BASE_URL}/ws`; // WebSocket endpoint
 
 
+// FIX: localStorage -> sessionStorage
 export const getToken = (): string | null => {
-  return localStorage.getItem("accessToken");
+  return sessionStorage.getItem("accessToken");
 };
 
+// FIX: localStorage -> sessionStorage
 export const getCurrentUserId = (): number => {
-  const userId = localStorage.getItem("userId");
+  const userId = sessionStorage.getItem("userId");
   if (userId) return parseInt(userId, 10);
 
   // Token'dan decode et
@@ -77,8 +78,9 @@ export const getCurrentUserId = (): number => {
   return 0;
 };
 
+// FIX: localStorage -> sessionStorage
 export const getCurrentUser = () => {
-  const userStr = localStorage.getItem("user");
+  const userStr = sessionStorage.getItem("user");
   if (userStr) {
     try {
       return JSON.parse(userStr);
@@ -111,11 +113,11 @@ export const chatApi = {
 
     const data: LoginResponse = await response.json();
 
-    // Token'ları kaydet
-    localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("refreshToken", data.refreshToken);
-    localStorage.setItem("userId", data.user.id.toString());
-    localStorage.setItem("user", JSON.stringify(data.user));
+    // FIX: localStorage -> sessionStorage
+    sessionStorage.setItem("accessToken", data.accessToken);
+    sessionStorage.setItem("refreshToken", data.refreshToken);
+    sessionStorage.setItem("userId", data.user.id.toString());
+    sessionStorage.setItem("user", JSON.stringify(data.user));
 
     return data;
   },
@@ -127,10 +129,11 @@ export const chatApi = {
         headers: getAuthHeaders(),
       });
     } finally {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-      localStorage.removeItem("user");
+      // FIX: localStorage -> sessionStorage
+      sessionStorage.removeItem("accessToken");
+      sessionStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("user");
     }
   },
 
@@ -163,7 +166,7 @@ export const chatApi = {
     }));
   },
 
-  
+  // FIX: /api/admin/users -> /api/users (user-controller endpoint'i)
   async getAllUsers(): Promise<ChatUser[]> {
     const response = await fetch(`${API_BASE_URL}/api/users`, {
       method: "GET",
@@ -176,8 +179,11 @@ export const chatApi = {
 
     const data = await response.json();
     const currentUserId = getCurrentUserId();
+    
+    // Backend response array veya paginated olabilir
+    const users = data.content || data;
 
-    return data
+    return users
       .filter((user: any) => user.id !== currentUserId)
       .map((user: any) => ({
         id: user.id,

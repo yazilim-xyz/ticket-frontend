@@ -13,7 +13,8 @@ const apiClient = axios.create({
 // Request interceptor - Add token to every request
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    // FIX: localStorage yerine sessionStorage kullan (authService ile uyumlu)
+    const token = sessionStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,8 +33,11 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     // Handle 401 Unauthorized - Token expired
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      // FIX: localStorage yerine sessionStorage kullan
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('userId');
       window.location.href = '/login';
     }
 

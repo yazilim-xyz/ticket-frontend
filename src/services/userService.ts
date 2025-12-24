@@ -26,7 +26,8 @@ export interface UserStats {
 // HELPER FUNCTIONS
 
 const getAuthHeaders = (): HeadersInit => {
-  const token = localStorage.getItem("accessToken");
+  // FIX: localStorage yerine sessionStorage kullan
+  const token = sessionStorage.getItem("accessToken");
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

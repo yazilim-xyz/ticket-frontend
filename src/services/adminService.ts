@@ -147,7 +147,8 @@ const mapFrontendToUpdateRequest = (userData: {
 // ============================================
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('accessToken');
+  // FIX: localStorage yerine sessionStorage kullan
+  const token = sessionStorage.getItem('accessToken');
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -161,19 +162,20 @@ const getAuthHeaders = () => {
 export const adminService = {
   /**
    * Get All Users (with pagination)
-   * GET /api/admin/users?page=0&size=100
+   * GET /api/admin/users
    */
   getUsers: async (): Promise<AdminUser[]> => {
     // Add timestamp to prevent caching
     const timestamp = new Date().getTime();
-    const url = `${API_BASE_URL}/admin/users?_t=${timestamp}`;
+    // FIX: /admin/users -> /api/admin/users
+    const url = `${API_BASE_URL}/api/admin/users?_t=${timestamp}`;
 
     console.log('🔄 Fetching users from:', url);
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        'Authorization': `Bearer ${sessionStorage.getItem('accessToken')}`,
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
@@ -187,20 +189,13 @@ export const adminService = {
 
     const data = await response.json();
     console.log('📥 Raw backend response:', data);
-    console.log('📊 User count:', data.length);
     
-    // Log each user's status
-    data.forEach((user: any, index: number) => {
-      console.log(`User ${index + 1}:`, {
-        name: user.fullName,
-        email: user.email,
-        status: user.status,
-        active: user.active !== undefined ? user.active : 'not present',
-        approved: user.approved !== undefined ? user.approved : 'not present'
-      });
-    });
+    // Backend paginated response döndürüyorsa content'i al, değilse direkt data'yı kullan
+    const users = data.content || data;
+    console.log('📊 User count:', users.length);
     
-    return data;
+    // Map backend users to frontend format
+    return users.map((user: AdminUserBackendResponse) => mapBackendUserToFrontend(user));
   },
 
   /**
@@ -322,24 +317,22 @@ export const adminService = {
 
   /**
    * Toggle User Status (Active/Disabled)
-   * PATCH /api/admin/users/{id}/status
-   * 
-   * Backend void döndürüyor, user'ı tekrar fetch ediyoruz
+   * PATCH /api/admin/users/{id}/active
    */
   toggleUserStatus: async (userId: string): Promise<AdminUser> => {
     // 1. Mevcut kullanıcıyı al
     const currentUser = await adminService.getUserById(userId);
     
-    // 2. Status'ü tersine çevir - ACTIVE ↔ DISABLED
-    const newStatus = currentUser.status === 'active' ? 'DISABLED' : 'ACTIVE';
+    // 2. Status'ü tersine çevir
+    const newActiveStatus = currentUser.status !== 'active';
     
-    // 3. Status değiştir
+    // 3. Status değiştir - Swagger'a göre /api/admin/users/{id}/active
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/users/${userId}/status`,
+      `${API_BASE_URL}/api/admin/users/${userId}/active`,
       {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({status: newStatus}),
+        body: JSON.stringify({ active: newActiveStatus }),
       }
     );
 
@@ -353,15 +346,14 @@ export const adminService = {
     return await adminService.getUserById(userId);
   },
 
-    /**
-   * ✅ YENI: Approve/Reject User
-   * PATCH /api/admin/users/{id}/approve
-   * 
-   * Register olan kullanıcılar için admin onayı
+  /**
+   * Approve/Reject User
+   * PATCH /api/admin/users/{id}/approval
    */
   approveUser: async (userId: string, approved: boolean): Promise<AdminUser> => {
+    // Swagger'a göre /api/admin/users/{id}/approval
     const response = await fetch(
-      `${API_BASE_URL}/api/admin/users/${userId}/approve`,
+      `${API_BASE_URL}/api/admin/users/${userId}/approval`,
       {
         method: 'PATCH',
         headers: getAuthHeaders(),
@@ -381,15 +373,14 @@ export const adminService = {
   /**
    * Delete User
    * DELETE /api/admin/users/{id}
-   * 
-   * ✅ Backend endpoint artık mevcut!
    */
   deleteUser: async (userId: string): Promise<void> => {
     console.log('🗑️ Attempting to delete user:', userId);
-    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+    // FIX: /admin/users -> /api/admin/users
+    const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        'Authorization': `Bearer ${sessionStorage.getItem('accessToken')}`,
         'Content-Type': 'application/json',
       },
     });
@@ -403,17 +394,7 @@ export const adminService = {
       throw new Error(`Failed to delete user: ${response.status} - ${errorText}`);
     }
 
-    // Try to parse response
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json();
-      console.log('✅ Delete response data:', data);
-    } else {
-      console.log('✅ Delete successful (no JSON response)');
-    }
     console.log('✅ User deleted successfully');
-    // Backend void döndürüyor, response body yok
-    // Başarılı silme işlemi
   },
 
   /**
