@@ -6,7 +6,8 @@ import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
 import UpdateAssignmentModal from '../components/modals/UpdateAssignmentModal';
 import DeleteConfirmationModal from '../components/modals/DeleteConfirmationModal';
-import { ticketService, TicketStatus, Ticket } from '../services/ticketService';
+import { ticketService } from '../services/ticketService';
+import {TicketStatus, Ticket } from '@/types'
 
 const AllTicketsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();

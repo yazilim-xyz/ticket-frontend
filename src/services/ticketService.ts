@@ -83,6 +83,75 @@ async function authenticatedFetch(
 // ============================================
 // TICKET SERVICE
 // ============================================
+// ===========================
+// BACKEND DTO TYPES
+// ===========================
+type TicketDto = {
+  id: number | string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+
+  // senin backend örneğinde bunlar var:
+  ownerId?: number | null;
+  ownerEmail?: string | null;
+
+  assignedToId?: number | null;
+  assignedToEmail?: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+
+  // backend varsa diğerleri:
+  category?: string | null;
+  dueDate?: string | null;
+};
+
+type PageDto<T> = { content: T[] } | T[];
+
+// ===========================
+// MAPPER (DTO -> Frontend Ticket)
+// ===========================
+function mapTicketDtoToTicket(dto: TicketDto): Ticket {
+  const assignee =
+    dto.assignedToEmail
+      ? { firstName: dto.assignedToEmail, lastName: '' } // TicketTable bunu string gibi basacak
+      : undefined;
+
+  const owner =
+    dto.ownerEmail
+      ? { firstName: dto.ownerEmail, lastName: '' }
+      : undefined;
+
+  return {
+    id: String(dto.id),
+    title: dto.title,
+    description: dto.description,
+    category: dto.category ?? 'OTHER',
+    priority: dto.priority as any,
+    status: dto.status as any,
+
+    // eski tiplerin bozulmaması için:
+    assignedTo: dto.assignedToId ? String(dto.assignedToId) : '',
+    createdBy: dto.ownerId ? String(dto.ownerId) : '',
+
+    createdAt: dto.createdAt,
+    updatedAt: dto.updatedAt,
+    dueDate: dto.dueDate ?? '',
+
+    // TicketTable artık buradan basacak:
+    assignee,
+    owner,
+
+    attachments: [],
+    email: dto.ownerEmail ?? '',
+  };
+}
+
+function extractContent<T>(data: PageDto<T>): T[] {
+  return Array.isArray(data) ? data : (data.content ?? []);
+}
 
 class TicketService {
   /* =======================
@@ -106,10 +175,9 @@ class TicketService {
     const data = await res.json();
     
     // Backend paginated response döndürüyorsa content'i al
-    const tickets = data.content || data;
-    console.log(`✅ Fetched ${tickets.length} tickets`);
+    const dtos = extractContent<TicketDto>(data);
+    return dtos.map(mapTicketDtoToTicket);
     
-    return tickets;
   }
 
   /* =======================
@@ -119,7 +187,8 @@ class TicketService {
   async getTicketById(id: string): Promise<Ticket> {
     const endpoint = `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}`;
     const res = await authenticatedFetch(endpoint, { method: "GET" });
-    return res.json();
+    const dto: TicketDto = await res.json();
+    return mapTicketDtoToTicket(dto);
   }
 
   /* =======================
@@ -141,7 +210,9 @@ class TicketService {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    return res.json();
+    
+    const dto: TicketDto = await res.json();
+    return mapTicketDtoToTicket(dto);
   }
 
   /* =======================
@@ -158,7 +229,9 @@ class TicketService {
       method: "PATCH",
       body: JSON.stringify({ assignedToId }),
     });
-    return res.json();
+    
+    const dto: TicketDto = await res.json();
+    return mapTicketDtoToTicket(dto);
   }
 
   /* =======================

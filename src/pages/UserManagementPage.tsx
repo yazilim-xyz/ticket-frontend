@@ -273,7 +273,7 @@ const UserManagementPage: React.FC = () => {
       <Sidebar isDarkMode={isDarkMode}  />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto">
         {/* Header */}
         <div className={`px-8 py-6 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between">

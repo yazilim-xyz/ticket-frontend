@@ -4,7 +4,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useTickets } from '../hooks/useTickets';
 import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
-import { ticketService, TicketStatus, Ticket } from '../services/ticketService';
+import { ticketService } from '../services/ticketService';
+import { TicketStatus, Ticket } from '../types';
 
 const ActiveTicketsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();

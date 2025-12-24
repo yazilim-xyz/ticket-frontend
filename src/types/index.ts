@@ -40,6 +40,21 @@ export interface Ticket {
   email: string;
 }
 
+export interface BackendTicketDTO {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  ownerId: number | null;
+  ownerEmail: string | null;
+  assignedToId: number | null;
+  assignedToEmail: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
 // Statistics Types
 export interface TicketStats {
   total: number;

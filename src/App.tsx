@@ -65,9 +65,9 @@ function App() {
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
             {/* Error Pages */}
-            <Route path="/403" element={<Error403Page />} />
-            <Route path="/404" element={<Error404Page />} />
-            <Route path="/505" element={<Error505Page />} />
+            <Route path="/error-403" element={<Error403Page />} />
+            <Route path="/error-404" element={<Error404Page />} />
+            <Route path="/error-505" element={<Error505Page />} />
             {/* Catch All */}
             <Route path="*" element={<Error404Page />} />
           </Routes>

@@ -1,15 +1,15 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ticket } from '../../services/ticketService';
+import { Ticket } from '../../types';
 import TicketActionsMenu from './TicketActionsMenu';
 
 interface TicketTableProps {
   tickets: Ticket[];
   loading: boolean;
   isDarkMode: boolean;
-  onDelete: (ticketId: string) => void;
-  onUpdateStatus: (ticketId: string) => void; 
-  onUpdateAssignment?: (ticketId: string) => void; // For admin to reassign tickets
+  onDelete: (ticketId: string | number) => void;
+  onUpdateStatus: (ticketId: string | number) => void; 
+  onUpdateAssignment?: (ticketId: string | number) => void; // For admin to reassign tickets
   userRole: 'user' | 'admin';
   canDelete?: boolean;
 }
@@ -85,6 +85,14 @@ const TicketTable: React.FC<TicketTableProps> = ({
         return status;
     }
   };
+  
+  // initials için email'den de çalışsın
+  const getInitialsFromEmailOrName = (text: string) => {
+    if (!text || text === '-') return '-';
+    if (text.includes('@')) return text[0].toUpperCase(); // email ise tek harf
+    return getInitials(text);
+  };
+
 
   if (loading) {
     return (
@@ -132,7 +140,7 @@ const TicketTable: React.FC<TicketTableProps> = ({
                 Date
               </th>
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Owner
+                Assignee
               </th>
               <th className={`px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Actions
@@ -140,80 +148,85 @@ const TicketTable: React.FC<TicketTableProps> = ({
             </tr>
           </thead>
           <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
-            {tickets.map((ticket) => (
-              <tr
-                key={ticket.id}
-                className={`transition-colors ${
-                  isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
-                }`}
-              >
-                {/* Ticket ID */}
-                <td className={`px-6 py-4 whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <span className="text-sm font-medium">{ticket.title}</span>
-                </td>
+            {tickets.map((ticket) => {
+              // ✅ Assignee artık normalize edilmiş ticket.assignee'den geliyor
+              const assigneeText = ticket.assignee
+                ? `${ticket.assignee.firstName} ${ticket.assignee.lastName}`.trim()
+                : '-';
 
-                {/* Title */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <button
-                    onClick={() => navigate(`/ticket/${ticket.id}`)}
-                    className={`text-sm font-medium hover:underline text-left ${
-                      isDarkMode ? 'text-gray-200' : 'text-gray-900'
-                    }`}
-                  >
-                    {ticket.description.split(' - ')[0]}
-                  </button>
-                </td>
+              return (
+                <tr
+                  key={ticket.id}
+                  className={`transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'}`}
+                >
+                  {/* Ticket ID */}
+                  <td className={`px-6 py-4 whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <span className="text-sm font-medium">{`TCK-${ticket.id}`}</span>
+                  </td>
 
-                {/* Status */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={getStatusStyle(ticket.status)}>
-                    {formatStatus(ticket.status)}
-                  </span>
-                </td>
+                  {/* Title */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => navigate(`/ticket/${ticket.id}`)}
+                      className={`text-sm font-medium hover:underline text-left ${
+                        isDarkMode ? 'text-gray-200' : 'text-gray-900'
+                      }`}
+                    >
+                      {ticket.title}
+                    </button>
+                  </td>
 
-                {/* Priority */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={getPriorityStyle(ticket.priority)}>
-                    {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
-                  </span>
-                </td>
+                  {/* Status */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={getStatusStyle(ticket.status)}>{formatStatus(ticket.status)}</span>
+                  </td>
 
-                {/* Date */}
-                <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {formatDate(ticket.createdAt)}
-                </td>
+                  {/* Priority */}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={getPriorityStyle(ticket.priority)}>
+                      {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
+                    </span>
+                  </td>
 
-                {/* Owner */}
-                <td className="px-8 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                      {ticket.owner && (
-                       <>
+                  {/* Date */}
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {formatDate(ticket.createdAt)}
+                  </td>
+
+                  {/* Assignee */}
+                  <td className="px-8 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      {assigneeText !== '-' ? (
+                        <>
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                            {getInitials(ticket.owner)}
+                            {getInitialsFromEmailOrName(assigneeText)}
                           </div>
                           <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                            {ticket.owner}
+                            {assigneeText}
                           </span>
-                       </>
-                     )}
-                  </div>
-                </td>
+                        </>
+                      ) : (
+                        <span className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Unassigned</span>
+                      )}
+                    </div>
+                  </td>
 
-                {/* Actions */}
-                <td className="px-8 py-4 whitespace-nowrap text-right">
-                  <TicketActionsMenu
-                    ticketId={ticket.id}
-                    onView={() => navigate(`/ticket/${ticket.id}`)}
-                    onEdit={() => onUpdateStatus(ticket.id)}
-                    onUpdateAssignment={onUpdateAssignment ? () => onUpdateAssignment(ticket.id) : undefined}
-                    onDelete={() => onDelete(ticket.id)}
-                    isDarkMode={isDarkMode}
-                    userRole={userRole}
-                    canDelete={canDelete} 
-                  />
-                </td>
-              </tr>
-            ))}
+                  {/* Actions */}
+                  <td className="px-8 py-4 whitespace-nowrap text-right">
+                    <TicketActionsMenu
+                      ticketId={ticket.id}
+                      onView={() => navigate(`/ticket/${ticket.id}`)}
+                      onEdit={() => onUpdateStatus(ticket.id)}
+                      onUpdateAssignment={onUpdateAssignment ? () => onUpdateAssignment(ticket.id) : undefined}
+                      onDelete={() => onDelete(ticket.id)}
+                      isDarkMode={isDarkMode}
+                      userRole={userRole}
+                      canDelete={canDelete}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

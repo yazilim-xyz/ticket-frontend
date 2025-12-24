@@ -146,8 +146,8 @@ const AiChatBotPage: React.FC = () => {
             onClick={handleNewChat}
             className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-full font-medium transition ${
               isDarkMode
-                ? "bg-teal-600 hover:bg-teal-700 text-white"
-                : "bg-teal-700 hover:bg-teal-800 text-white"
+                ? "bg-cyan-600 hover:bg-cyan-700 text-white"
+                : "bg-cyan-700 hover:bg-cyan-800 text-white"
             }`}
           >
             <Plus className="w-5 h-5" />

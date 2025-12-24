@@ -2,6 +2,26 @@ import { useState, useEffect, useCallback } from 'react';
 import { ticketService } from '../services/ticketService';
 import type { Ticket } from '../types';
 
+const HIDDEN_KEY = 'hidden_ticket_ids_v1';
+
+const getHiddenIds = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const addHiddenId = (id: string) => {
+  const hidden = new Set(getHiddenIds());
+  hidden.add(String(id));
+  localStorage.setItem(HIDDEN_KEY, JSON.stringify(Array.from(hidden)));
+};
+
+const isHidden = (id: string) => {
+  return getHiddenIds().includes(String(id));
+};
+
 interface UseTicketsOptions {
   userId?: number; // If provided, filter tickets by assigned user
   autoFetch?: boolean; // Auto-fetch on mount (default: true)
@@ -36,6 +56,8 @@ export const useTickets = (options: UseTicketsOptions = {}): UseTicketsReturn =>
 
       // Fetch all tickets from admin endpoint
       const data = await ticketService.getTickets();
+      const hiddenIds = new Set(getHiddenIds());
+      const visibleTickets = data.filter(t => !hiddenIds.has(String((t as any).id)));
       console.log('📋 Fetched:', data.length, 'tickets');
 
       // If userId is provided, filter tickets assigned to that user
@@ -72,7 +94,7 @@ export const useTickets = (options: UseTicketsOptions = {}): UseTicketsReturn =>
       } else {
         // Admin - show all tickets
         console.log('✅ All Tickets (admin):', data.length);
-        setTickets(data);
+        setTickets(visibleTickets);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch tickets';
@@ -93,7 +115,7 @@ export const useTickets = (options: UseTicketsOptions = {}): UseTicketsReturn =>
   const deleteTicket = async (id: string) => {
     try {
       await ticketService.deleteTicket(id);
-      setTickets(prev => prev.filter(t => String(t.id) !== id));
+      setTickets(prev => prev.filter(t => String(t.id) !== String(id)));
     } catch (err) {
       console.error('Error deleting ticket:', err);
       throw err;
