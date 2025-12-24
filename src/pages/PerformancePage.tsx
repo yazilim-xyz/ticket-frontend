@@ -7,15 +7,18 @@ import { Ticket } from "../types";
 type ChartType = "pie" | "bar";
 
 type StatusBucket = {
-  open: number;        
-  inProgress: number;  
-  resolved: number;    
-  deleted: number;     
+  total: number;
+  opened: number;
+  waiting: number;
+  inProgress: number;
+  resolved: number;
+  closed: number;
+  overdue: number;
 };
 const getAssigneeLabel = (t: Ticket): string => {
-  if (t.owner?.firstName) return t.owner.lastName;
-  if (t.assignee) return String(t.assignee);
-  if (t.assignedTo) return String(t.assignedTo);
+  if (t.owner?.firstName || t.owner?.lastName) {
+    return `${t.owner.firstName || ""} ${t.owner.lastName || ""}`.trim();
+  }
   return "Unassigned";
 };
 
@@ -27,15 +30,15 @@ const isDeletedTicket = (t: Ticket): boolean => {
   return false;
 };
 
-const normalizeStatus = (t: Ticket) => {
-  const raw = String((t as any).status || "").toLowerCase();
-  if (isDeletedTicket(t)) return "deleted";
-  if (raw === "completed" || raw === "done") return "done";
-  if (raw === "in_progress" || raw === "in progress") return "in_progress";
-  if (raw === "new" || raw === "not started" || raw === "open") return "new";
-  return raw || "new";
+// 2. Normalize Fonksiyonu (Java Enumları ile birebir)
+const normalizeStatus = (t: Ticket): keyof StatusBucket => {
+  const raw = String((t as any).status || "").toUpperCase();
+  if (raw === "OPEN") return "opened";
+  if (raw === "IN_PROGRESS") return "inProgress";
+  if (raw === "RESOLVED") return "resolved";
+  if (raw === "CLOSED") return "closed";
+  return "opened";
 };
-
 const PerformancePage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
 
@@ -49,7 +52,20 @@ const PerformancePage: React.FC = () => {
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+  const isOverdue = (t: Ticket): boolean => {
+    if (!t.dueDate) return false;
 
+    // Bilet zaten tamamlanmışsa (Resolved veya Closed) süresi geçmiş sayılmaz
+    const rawStatus = String((t as any).status || "").toUpperCase();
+    const isFinished = rawStatus === "RESOLVED" || rawStatus === "CLOSED";
+
+    if (isFinished) return false;
+
+    // Şu anki zaman, dueDate'den büyükse süresi geçmiştir
+    const now = new Date();
+    const dueDate = new Date(t.dueDate);
+    return now > dueDate;
+  };
   useEffect(() => {
     const load = async () => {
       try {
@@ -101,17 +117,25 @@ const PerformancePage: React.FC = () => {
     return data;
   }, [tickets, selectedPerson, selectedDate]);
 
-const buckets: StatusBucket = useMemo(() => {
-  // İlk değerleri yeni isimlere göre veriyoruz
-  const b: StatusBucket = { open: 0, inProgress: 0, resolved: 0, deleted: 0 };
+  //Bucket Hesaplaması (Admin'in filtrelerine duyarlı)
+  const buckets: StatusBucket = useMemo(() => {
+  const b: StatusBucket = { total: 0, opened: 0, waiting: 0, inProgress: 0, resolved: 0, closed: 0, overdue: 0 };
   
+  b.total = filteredTickets.length;
+
   for (const t of filteredTickets) {
-    const st = normalizeStatus(t); // Bu fonksiyonu demin RESOLVED/OPEN için düzeltmiştik
-    
-    if (st === "deleted") b.deleted += 1;
-    else if (st === "done") b.resolved += 1;      // normalizeStatus "done" dönüyorsa resolved'a ekle
-    else if (st === "in_progress") b.inProgress += 1;
-    else b.open += 1;                             // normalizeStatus "new" dönüyorsa open'a ekle
+    const st = normalizeStatus(t);
+    if (st in b) {
+       b[st] += 1;
+    }
+    // Overdue mantığı: Resolved veya Closed olmayan, süresi geçmiş biletler
+    if (st !== "resolved" && st !== "closed") {
+      const now = new Date();
+      const due = t.dueDate ? new Date(t.dueDate) : null;
+      if (due && now > due) {
+        b.overdue += 1;
+      }
+    }
   }
   return b;
 }, [filteredTickets]);
@@ -120,7 +144,7 @@ const buckets: StatusBucket = useMemo(() => {
     const now = new Date().getTime();
     return filteredTickets.filter((t) => {
       const st = normalizeStatus(t);
-      if (st === "done" || st === "deleted") return false;
+      if (st === "resolved" || st === "closed") return false;
       const due = (t as any).dueDate;
       if (!due) return false;
       const ts = new Date(due).getTime();
@@ -128,112 +152,110 @@ const buckets: StatusBucket = useMemo(() => {
     }).length;
   }, [filteredTickets]);
 
-  const total = buckets.notStarted + buckets.inProgress + buckets.done + buckets.deleted;
+  const total = buckets.opened + buckets.inProgress + buckets.resolved + buckets.closed;
 
   const chartOptions = [
-    { id: "pie" as ChartType, label: "Pie Chart"},
-    { id: "bar" as ChartType, label: "Bar Chart"},
+    { id: "pie" as ChartType, label: "Pie Chart" },
+    { id: "bar" as ChartType, label: "Bar Chart" },
   ];
 
   // Pie Chart Component
   const PieChartVisual = () => {
-    const pct = (v: number) => (total === 0 ? 0 : (v / total) * 100);
-    const a = pct(buckets.notStarted);
-    const b = pct(buckets.inProgress);
-    const c = pct(buckets.done);
+  // Yüzde hesaplama: Değer / Toplam bilet sayısı
+  const pct = (v: number) => (buckets.total === 0 ? 0 : (v / buckets.total) * 100);
+  
+  const a = pct(buckets.opened);
+  const b = pct(buckets.inProgress);
+  const c = pct(buckets.resolved);
 
-    const bg = `conic-gradient(
-      #6D28D9 0% ${a}%,
-      #06B6D4 ${a}% ${a + b}%,
-      #14B8A6 ${a + b}% ${a + b + c}%,
-      #BE185D ${a + b + c}%
-    )`;
+  // Geri kalan kısım (Closed vb.) gri alan olarak görünür
+  const bg = `conic-gradient(
+    #6D28D9 0% ${a}%,
+    #06B6D4 ${a}% ${a + b}%,
+    #14B8A6 ${a + b}% ${a + b + c}%,
+    ${isDarkMode ? '#374151' : '#e5e7eb'} ${a + b + c}% 100%
+  )`;
 
-    return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <div className="relative">
-          <div
-            className="w-52 h-52 rounded-full shadow-lg"
-            style={{ background: total === 0 ? (isDarkMode ? '#374151' : '#e5e7eb') : bg }}
-          >
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-inner flex items-center justify-center`}>
-              <div className="text-center">
-                <div className={`text-2xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{total}</div>
-                <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total</div>
-              </div>
+  return (
+    <div className="flex flex-col items-center justify-center h-full">
+      <div className="relative">
+        <div
+          className="w-52 h-52 rounded-full shadow-lg transition-all duration-700"
+          style={{ background: buckets.total === 0 ? (isDarkMode ? '#374151' : '#e5e7eb') : bg }}
+        >
+          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-inner flex items-center justify-center`}>
+            <div className="text-center">
+              <div className={`text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{buckets.total}</div>
+              <div className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>TOTAL</div>
             </div>
           </div>
         </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-2">
-          {[
-            { label: "Not Started", value: buckets.notStarted, color: "bg-violet-700" },
-            { label: "In Progress", value: buckets.inProgress, color: "bg-cyan-500" },
-            { label: "Done", value: buckets.done, color: "bg-teal-500" },
-            { label: "Deleted", value: buckets.deleted, color: "bg-pink-700" },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-sm ${item.color}`} />
-              <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                {item.label}: <span className="font-semibold">{item.value}</span>
-              </span>
-            </div>
-          ))}
-        </div>
       </div>
-    );
-  };
+
+      <div className="mt-6 grid grid-cols-4 gap-x-2 w-full px-2">
+        {[
+          { label: "Total", value: buckets.total, color: "bg-gray-400" },
+          { label: "Opened", value: buckets.opened, color: "bg-violet-700" },
+          { label: "In Progress", value: buckets.inProgress, color: "bg-cyan-500" },
+          { label: "Resolved", value: buckets.resolved, color: "bg-teal-500" },
+        ].map((item) => (
+          <div key={item.label} className="flex flex-col items-center">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+              <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{item.label}</span>
+            </div>
+            <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
   // Bar Chart Component - Fixed version with inline styles for proper rendering
   const BarChartVisual = () => {
-    const max = Math.max(1, buckets.notStarted, buckets.inProgress, buckets.done, buckets.deleted);
-    const heightPx = (v: number) => Math.max((v / max) * 160, 8); // 160px max height, 8px minimum
+  // En yüksek bar her zaman 'Total' olacağı için max değer b.total
+  const max = Math.max(1, buckets.total);
+  const heightPx = (v: number) => Math.max((v / max) * 160, 8);
 
-    const bars = [
-      { label: "Not Started", value: buckets.notStarted, color: "#6D28D9" }, // violet-700
-      { label: "In Progress", value: buckets.inProgress, color: "#06B6D4" }, // cyan-500
-      { label: "Done", value: buckets.done, color: "#14B8A6" }, // teal-500
-      { label: "Deleted", value: buckets.deleted, color: "#BE185D" }, // pink-700
-    ];
+  const bars = [
+    { label: "Total", value: buckets.total, color: isDarkMode ? "#4B5563" : "#9CA3AF" },
+    { label: "Opened", value: buckets.opened, color: "#6D28D9" },
+    { label: "Waiting", value: buckets.waiting, color: "#F59E0B" },
+    { label: "In Progress", value: buckets.inProgress, color: "#06B6D4" },
+    { label: "Resolved", value: buckets.resolved, color: "#14B8A6" },
+  ];
 
-    return (
-      <div className="flex flex-col h-full justify-center px-8">
-        <div className={`h-48 flex items-end justify-center gap-8 pb-2 border-b-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          {bars.map((bar) => (
-            <div key={bar.label} className="flex flex-col items-center gap-2">
-              <span className={`text-sm font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                {bar.value}
-              </span>
-              <div
-                className="w-14 rounded-t-lg transition-all duration-500 ease-out"
-                style={{ 
-                  height: `${heightPx(bar.value)}px`,
-                  backgroundColor: bar.color,
-                  minHeight: '8px'
-                }}
-              />
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-center gap-8 mt-3">
-          {bars.map((bar) => (
-            <div key={bar.label} className="w-14 text-center">
-              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {bar.label}
-              </span>
-            </div>
-          ))}
-        </div>
+  return (
+    <div className="flex flex-col h-full justify-center px-4">
+      <div className={`h-48 flex items-end justify-around pb-2 border-b-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+        {bars.map((bar) => (
+          <div key={bar.label} className="flex flex-col items-center gap-2 group w-16">
+            <span className={`text-xs font-bold transition-all ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              {bar.value}
+            </span>
+            <div
+              className="w-full rounded-t-md transition-all duration-500 ease-out hover:brightness-110 shadow-sm"
+              style={{ 
+                height: `${heightPx(bar.value)}px`,
+                backgroundColor: bar.color,
+              }}
+            />
+            <span className={`text-[9px] text-center uppercase tracking-tighter font-bold mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              {bar.label}
+            </span>
+          </div>
+        ))}
       </div>
-    );
-  };
-
+    </div>
+  );
+};
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
-            <p className={`mt-4 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>Loading performance data...</p>
+          <p className={`mt-4 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>Loading performance data...</p>
         </div>
       </div>
     );
@@ -334,7 +356,7 @@ const buckets: StatusBucket = useMemo(() => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                    {buckets.done}
+                    {buckets.closed}
                   </h3>
                   <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Completed
@@ -347,8 +369,8 @@ const buckets: StatusBucket = useMemo(() => {
                 </div>
               </div>
             </div>
-          </div>     
-          
+          </div>
+
           {/* Chart Card */}
           <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl shadow-sm overflow-hidden`}>
             <div className={`px-12 py-4  border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center justify-between`}>
@@ -360,19 +382,18 @@ const buckets: StatusBucket = useMemo(() => {
                 <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
                   {filteredTickets.length} tickets {selectedPerson !== "all" || selectedDate ? "(filtered)" : ""}
                 </p>
-              </div>  
-          
+              </div>
+
               {/* Right: Filter and Chart Controls */}
               <div className="flex items-center gap-10">
                 {/* Filter Button */}
                 <div className="relative" ref={filterRef}>
                   <button
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    className={`flex items-center gap-4 px-4 py-2 rounded-lg border transition-colors ${
-                      isDarkMode
+                    className={`flex items-center gap-4 px-4 py-2 rounded-lg border transition-colors ${isDarkMode
                         ? 'bg-gray-700 border-gray-600 text-gray-200 hover:border-teal-500'
                         : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-teal-500'
-                    } ${(selectedPerson !== "all" || selectedDate) ? 'border-teal-500' : ''}`}
+                      } ${(selectedPerson !== "all" || selectedDate) ? 'border-teal-500' : ''}`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -386,9 +407,8 @@ const buckets: StatusBucket = useMemo(() => {
                   </button>
 
                   {isFilterOpen && (
-                    <div className={`absolute left-0 top-full mt-2 w-80 rounded-xl shadow-xl z-20 overflow-hidden ${
-                      isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                    }`}>
+                    <div className={`absolute left-0 top-full mt-2 w-80 rounded-xl shadow-xl z-20 overflow-hidden ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                      }`}>
                       <div className="p-4">
                         <div className="flex items-center justify-between mb-4">
                           <h4 className={`font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Filters</h4>
@@ -416,11 +436,10 @@ const buckets: StatusBucket = useMemo(() => {
                               <button
                                 key={p}
                                 onClick={() => setSelectedPerson(p)}
-                                className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                                  selectedPerson === p
+                                className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedPerson === p
                                     ? isDarkMode ? 'bg-teal-600/20 text-teal-400' : 'bg-teal-50 text-teal-700'
                                     : isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
-                                }`}
+                                  }`}
                               >
                                 {p === "all" ? "All People" : p}
                               </button>
@@ -440,11 +459,10 @@ const buckets: StatusBucket = useMemo(() => {
                             type="date"
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
-                            className={`w-full px-3 py-2 rounded-lg border transition-all ${
-                              isDarkMode
+                            className={`w-full px-3 py-2 rounded-lg border transition-all ${isDarkMode
                                 ? 'bg-gray-700 border-gray-600 text-gray-200 focus:border-teal-500'
                                 : 'bg-gray-50 border-gray-200 text-gray-800 focus:border-teal-500'
-                            } focus:outline-none focus:ring-2 focus:ring-teal-500`}
+                              } focus:outline-none focus:ring-2 focus:ring-teal-500`}
                           />
                         </div>
 
@@ -463,11 +481,10 @@ const buckets: StatusBucket = useMemo(() => {
                 <div className="relative">
                   <button
                     onClick={() => setIsChartDropdownOpen(!isChartDropdownOpen)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                      isDarkMode
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${isDarkMode
                         ? 'bg-gray-700 border-gray-600 text-gray-200 hover:border-teal-500'
                         : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-teal-500'
-                    }`}
+                      }`}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       {selectedChart === "pie" ? (
@@ -487,9 +504,8 @@ const buckets: StatusBucket = useMemo(() => {
                   {isChartDropdownOpen && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setIsChartDropdownOpen(false)} />
-                      <div className={`absolute right-0 mt-2 w-44 rounded-lg shadow-lg z-20 overflow-hidden ${
-                        isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                      }`}>
+                      <div className={`absolute right-0 mt-2 w-44 rounded-lg shadow-lg z-20 overflow-hidden ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                        }`}>
                         {chartOptions.map((option) => (
                           <button
                             key={option.id}
@@ -497,11 +513,10 @@ const buckets: StatusBucket = useMemo(() => {
                               setSelectedChart(option.id);
                               setIsChartDropdownOpen(false);
                             }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
-                              selectedChart === option.id
+                            className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${selectedChart === option.id
                                 ? isDarkMode ? 'bg-teal-600/20 text-teal-400' : 'bg-teal-50 text-teal-600'
                                 : isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
-                            }`}
+                              }`}
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               {option.id === "pie" ? (
@@ -531,16 +546,48 @@ const buckets: StatusBucket = useMemo(() => {
 
               {/* Summary Stats */}
               <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-5 gap-4"> {/* Kolon sayısını Overdue için 5'e çıkardık */}
                   {[
-                    { label: "Not Started", value: buckets.notStarted, color: "text-violet-700", bg: isDarkMode ? "bg-violet-900/20" : "bg-violet-50" },
-                    { label: "In Progress", value: buckets.inProgress, color: "text-cyan-500", bg: isDarkMode ? "bg-cyan-900/20" : "bg-cyan-50" },
-                    { label: "Done", value: buckets.done, color: "text-teal-500", bg: isDarkMode ? "bg-teal-900/20" : "bg-teal-50" },
-                    { label: "Deleted", value: buckets.deleted, color: "text-pink-700", bg: isDarkMode ? "bg-pink-900/20" : "bg-pink-50" },
+                    {
+                      label: "Opened",
+                      value: buckets.opened,
+                      color: "text-violet-600",
+                      bg: isDarkMode ? "bg-violet-900/20" : "bg-violet-50"
+                    },
+                    {
+                      label: "In Progress",
+                      value: buckets.inProgress,
+                      color: "text-cyan-500",
+                      bg: isDarkMode ? "bg-cyan-900/20" : "bg-cyan-50"
+                    },
+                    {
+                      label: "Resolved",
+                      value: buckets.resolved,
+                      color: "text-teal-500",
+                      bg: isDarkMode ? "bg-teal-900/20" : "bg-teal-50"
+                    },
+                    {
+                      label: "Closed",
+                      value: buckets.closed,
+                      color: "text-gray-500",
+                      bg: isDarkMode ? "bg-gray-800" : "bg-gray-100"
+                    },
+                    {
+                      label: "Overdue",
+                      value: buckets.overdue,
+                      color: "text-red-600",
+                      bg: isDarkMode ? "bg-red-900/20" : "bg-red-50",
+                      isAlert: true // Gecikme olduğu için vurgu yapabiliriz
+                    },
                   ].map((stat) => (
-                    <div key={stat.label} className={`${stat.bg} rounded-xl p-4 text-center`}>
-                      <p className={`text-2xl  ${stat.color}`}>{stat.value}</p>
-                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{stat.label}</p>
+                    <div
+                      key={stat.label}
+                      className={`${stat.bg} rounded-xl p-4 text-center transition-transform hover:scale-105 ${stat.isAlert && buckets.overdue > 0 ? 'ring-2 ring-red-500' : ''}`}
+                    >
+                      <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                      <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {stat.label}
+                      </p>
                     </div>
                   ))}
                 </div>
