@@ -65,11 +65,12 @@ const TicketDetailPage: React.FC = () => {
 
     try {
       setIsUpdating(true);
-      await ticketService.updateTicket(ticket.id, { status: selectedStatus as any });
+      await ticketService.updateTicket(ticket.id, { status: selectedStatus.toUpperCase() as any });
 
       // Refresh ticket data
       const updatedTicket = await ticketService.getTicketById(ticket.id);
       setTicket(updatedTicket);
+      setSelectedStatus(updatedTicket.status);
       setShowStatusDropdown(false);
     } catch (error) {
       console.error('Failed to update status:', error);
@@ -139,13 +140,15 @@ const TicketDetailPage: React.FC = () => {
   const getStatusStyle = (status: string): string => {
     const baseStyle = "px-3 py-1 rounded-full text-sm font-medium border";
     switch (status.toLowerCase()) {
-      case 'new':
+      case 'NEW':
         return `${baseStyle} bg-blue-50 text-blue-700 border-blue-200`;
-      case 'in_progress':
+      case 'IN_PROGRESS':
         return `${baseStyle} bg-cyan-50 text-cyan-700 border-cyan-200`;
-      case 'resolved':
+      case 'WAITING':
+        return `${baseStyle} bg-amber-50 text-amber-700 border-amber-200`;
+      case 'RESOLVED':
         return `${baseStyle} bg-emerald-50 text-emerald-700 border-emerald-200`;
-      case 'blocked':
+      case 'CLOSED':
         return `${baseStyle} bg-red-50 text-red-700 border-red-200`;
       default:
         return `${baseStyle} bg-gray-50 text-gray-700 border-gray-200`;
@@ -158,10 +161,12 @@ const TicketDetailPage: React.FC = () => {
         return 'In Progress';
       case 'new':
         return 'Not Started';
+      case 'waiting':
+        return 'Waiting';
       case 'resolved':
         return 'Done';
-      case 'blocked':
-        return 'Blocked';
+      case 'closed':
+        return 'Closed';
       default:
         return status;
     }
@@ -281,7 +286,8 @@ const TicketDetailPage: React.FC = () => {
   const statusOptions = [
     { value: 'new', label: 'Not Started' },
     { value: 'in_progress', label: 'In Progress' },
-    { value: 'blocked', label: 'Blocked' },
+    { value: 'waiting', label: 'Waiting' },
+    { value: 'closed', label: 'Closed' },
     { value: 'resolved', label: 'Done' }
   ];
 
@@ -499,8 +505,8 @@ const TicketDetailPage: React.FC = () => {
                   disabled={(ticket.status as any) === 'RESOLVED'} // Bilet bittiyse düzenleme kapansın
                   placeholder="Write the steps taken to resolve this ticket..."
                   className={`w-full px-4 py-3 rounded-lg border text-sm leading-relaxed resize-none focus:ring-2 focus:ring-cyan-500 outline-none transition-all ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-gray-200'
-                      : 'bg-white border-gray-300 text-gray-900'
+                    ? 'bg-gray-700 border-gray-600 text-gray-200'
+                    : 'bg-white border-gray-300 text-gray-900'
                     } ${ticket.status === 'RESOLVED' ? 'opacity-60 cursor-not-allowed' : ''}`}
                   rows={6}
                 />
@@ -605,10 +611,11 @@ const TicketDetailPage: React.FC = () => {
                   {/* FROM */}
                   <div>
                     <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      FROM:
+                      REPORTER (FROM):
                     </p>
                     <p className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Admin
+                      {/* Biletin içindeki yaratan kişi bilgisini basıyoruz */}
+                      {(ticket as any).createdBy?.fullName || (ticket as any).createdBy?.firstName ? `${(ticket as any).createdBy.firstName} ${(ticket as any).createdBy.lastName}` : "System Admin"}
                     </p>
                   </div>
 
