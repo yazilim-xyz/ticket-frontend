@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Ticket } from '../../types';
+import { Ticket } from '../../services/ticketService'; 
 
 interface UpdateAssignmentModalProps {
   isOpen: boolean;
@@ -123,7 +123,7 @@ const UpdateAssignmentModal: React.FC<UpdateAssignmentModalProps> = ({
               <p className={`text-base font-medium ${
                 isDarkMode ? 'text-cyan-400' : 'text-cyan-600'
               }`}>
-                {ticket.owner?.fullName || 'Unassigned'}
+                {ticket.assignedTo || ticket.owner || 'Unassigned'}
               </p>
             </div>
 
@@ -152,9 +152,9 @@ const UpdateAssignmentModal: React.FC<UpdateAssignmentModalProps> = ({
                   <option 
                     key={user.id} 
                     value={user.id}
-                    disabled={user.id === ticket.assignedTo}
+                    disabled={user.name === ticket.assignedTo}
                   >
-                    {user.name} {user.id === ticket.assignedTo ? '(Current)' : ''}
+                    {user.name} {user.name === ticket.assignedTo ? '(Current)' : ''}
                   </option>
                 ))}
               </select>

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo} from 'react';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
 import { useTickets } from '../hooks/useTickets';
 import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
-import { ticketService } from '../services/ticketService';
-import { Ticket } from '../types';
+import { ticketService, TicketStatus, Ticket } from '../services/ticketService';
 
 const ActiveTicketsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -19,24 +18,31 @@ const ActiveTicketsPage: React.FC = () => {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   
-  // Mock current user ID - Replace with actual auth
-  const currentUserId = 'user_1';
-  
-  const { tickets, loading, deleteTicket, refetch } = useTickets(currentUserId);
+  // Fetch all tickets
+  const { tickets, loading, refetch } = useTickets();
 
+  // Get current user info from localStorage
+  const currentUserId = localStorage.getItem('userId') || '';
+  const currentUserName = `${localStorage.getItem('name') || ''} ${localStorage.getItem('surname') || ''}`.trim();
+  const currentUserEmail = localStorage.getItem('userEmail') || '';
 
-  const handleDelete = async (ticketId: string) => {
-    if (window.confirm('Are you sure you want to delete this ticket?')) {
-      try {
-        await deleteTicket(ticketId);
-      } catch (error) {
-        console.error('Failed to delete ticket:', error);
-      }
-    }
-  };
+  console.log('🔍 Current User:', { currentUserId, currentUserName, currentUserEmail });
 
-   const handleUpdateStatus = (ticketId: string) => {
-    const ticket = tickets.find(t => t.id === ticketId);
+  // Filter tickets assigned to current user
+  const myTickets = useMemo(() => {
+    return tickets.filter(ticket => {
+      const assigned = (ticket.assignedTo || '').toLowerCase();
+      const owner = (ticket.owner || '').toLowerCase();
+
+      const name = currentUserName.toLowerCase();
+      const email = currentUserEmail.toLowerCase();
+
+    return assigned.includes(name) || assigned.includes(email) || owner.includes(name) || owner.includes(email);
+  });
+  }, [tickets, currentUserName, currentUserEmail]);
+
+  const handleUpdateStatus = (ticketId: string) => {
+    const ticket = myTickets.find(t => t.id === ticketId);
     if (ticket) {
       setSelectedTicket(ticket);
       setIsStatusModalOpen(true);
@@ -45,7 +51,9 @@ const ActiveTicketsPage: React.FC = () => {
 
   const handleStatusUpdate = async (ticketId: string, newStatus: string) => {
     try {
-      await ticketService.updateTicket(ticketId, { status: newStatus as any });
+      // Convert frontend status to backend TicketStatus enum
+      const backendStatus = convertToBackendStatus(newStatus);
+      await ticketService.updateTicketStatus(parseInt(ticketId), backendStatus);
       await refetch(); // Refresh ticket list
       setIsStatusModalOpen(false);
       setSelectedTicket(null);
@@ -55,26 +63,45 @@ const ActiveTicketsPage: React.FC = () => {
     }
   };
 
+  // Convert frontend status values to backend enum values
+  const convertToBackendStatus = (status: string): TicketStatus => {
+    const statusMap: Record<string, TicketStatus> = {
+      'new': 'OPEN',
+      'open': 'OPEN',
+      'in progress': 'IN_PROGRESS',
+      'in_progress': 'IN_PROGRESS',
+      'blocked': 'CANCELLED', // or keep as custom status if backend supports
+      'completed': 'RESOLVED',
+      'resolved': 'RESOLVED',
+      'done': 'RESOLVED',
+      'closed': 'CLOSED',
+    };
+    
+    return statusMap[status.toLowerCase()] || 'OPEN';
+  };
+
   // Filter tickets
-  const filteredTickets = tickets.filter(ticket => {
-    // Search filter
-    const matchesSearch = 
-      ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.project.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredMyTickets = useMemo(() => {
+    return myTickets.filter(ticket => {
+      // Search filter
+      const matchesSearch = 
+        ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.project.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Priority filter
-    const matchesPriority = 
-      filterPriority === 'all' || 
-      ticket.priority.toLowerCase() === filterPriority.toLowerCase();
+      // Priority filter
+      const matchesPriority = 
+        filterPriority === 'all' || 
+        ticket.priority.toLowerCase() === filterPriority.toLowerCase();
 
-    // Status filter
-    const matchesStatus = 
-      filterStatus === 'all' || 
-      ticket.status.toLowerCase() === filterStatus.toLowerCase();
+      // Status filter
+      const matchesStatus = 
+        filterStatus === 'all' || 
+        ticket.status.toLowerCase().replace('_', ' ') === filterStatus.toLowerCase().replace('_', ' ');
 
-    return matchesSearch && matchesPriority && matchesStatus;
-  });
+      return matchesSearch && matchesPriority && matchesStatus;
+    });
+  }, [myTickets, searchQuery, filterPriority, filterStatus]);
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
@@ -119,9 +146,11 @@ const ActiveTicketsPage: React.FC = () => {
           </div>
 
           {/* Page Title */}
-          <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
-            Active Tickets
-          </h1>
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9">
+              Active Tickets
+            </h1>
+          </div>
 
           {/* Search & Filter Bar */}
           <div className="flex items-center gap-4">
@@ -157,7 +186,7 @@ const ActiveTicketsPage: React.FC = () => {
               {showPriorityFilter && (
                 <div className={`absolute right-0 top-12 w-48 rounded-lg border shadow-lg z-10 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                   <div className="p-2">
-                    {['all', 'high', 'medium', 'low'].map((priority) => (
+                    {['all', 'critical', 'high', 'medium', 'low'].map((priority) => (
                       <button
                         key={priority}
                         onClick={() => {
@@ -173,6 +202,7 @@ const ActiveTicketsPage: React.FC = () => {
                         }`}
                       >
                         {priority === 'all' ? '🗃️ All Priorities' : 
+                         priority === 'critical' ? '🟣 Critical Priority' :
                          priority === 'high' ? '🔴 High Priority' :
                          priority === 'medium' ? '🟡 Medium Priority' :
                          '🟢 Low Priority'}
@@ -217,10 +247,10 @@ const ActiveTicketsPage: React.FC = () => {
                         }`}
                       >
                         {status === 'all' ? 'All Status' :
-                         status === 'new' ? 'New' :
+                         status === 'open' ? 'Open' :
                          status === 'in_progress' ? 'In Progress' :
-                         status === 'completed' ? 'Completed' :
-                         'Blocked'}
+                         status === 'resolved' ? 'Resolved' :
+                         'Closed'}
                       </button>
                     ))}
                   </div>
@@ -231,16 +261,31 @@ const ActiveTicketsPage: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <div className="px-8 py-6">
+        {filteredMyTickets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className={`w-24 h-24 rounded-full ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center mb-4`}>
+              <svg className={`w-12 h-12 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              No Tickets Assigned
+            </h3>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              You don't have any tickets assigned to you yet.
+            </p>
+          </div>
+        ) : (
           <TicketTable
-            tickets={filteredTickets}
+            tickets={filteredMyTickets}
             loading={loading}
             isDarkMode={isDarkMode}
-            onDelete={handleDelete}
+            onDelete={() => {}}
             onUpdateStatus={handleUpdateStatus}
             userRole="user"
+            canDelete={false}
           />
-        </div>
+        )}
       </div>
 
       {/* Update Status Modal */}

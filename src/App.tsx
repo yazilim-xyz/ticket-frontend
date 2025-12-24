@@ -52,7 +52,7 @@ function App() {
             <Route path="/admin-dashboard" element={<ProtectedRoute requiredRole="admin"><AdminDashboardPage /></ProtectedRoute>} />
             <Route path="/user-management" element={<ProtectedRoute requiredRole="admin"><UserManagementPage /></ProtectedRoute>} />
             <Route path="/all-tickets" element={<ProtectedRoute requiredRole="admin"><AllTicketsPage /></ProtectedRoute>} />
-            <Route path="/create-ticket" element={<ProtectedRoute><CreateTicketPage /></ProtectedRoute>} />
+            <Route path="/create-ticket" element={<ProtectedRoute requiredRole="admin"><CreateTicketPage /></ProtectedRoute>} />
             <Route path="/performance" element={<ProtectedRoute requiredRole="admin"><PerformancePage /></ProtectedRoute>} />
             <Route path="/activity-log" element={<ProtectedRoute requiredRole="admin"><ActivityLogPage /></ProtectedRoute>} />
 

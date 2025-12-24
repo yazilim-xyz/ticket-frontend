@@ -95,6 +95,7 @@ const UserManagementPage: React.FC = () => {
   const handleAddUser = async (userData: {
     fullName: string;
     email: string;
+    password: string;
     department: string;
     position: string;
     role: 'admin' | 'user';

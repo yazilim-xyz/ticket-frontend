@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { AdminUser } from '../../services/adminMockApi';
+import { AdminUser } from '../../types';
 
 interface EditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (userId: string, userData: {
-    fullName: string;
-    email: string;
+  onSubmit: (userId: number, userData: {
+    name: string;
+    surname: string;
     department: string;
-    position: string;
   }) => void;
   user: AdminUser | null;
 }
@@ -17,10 +16,10 @@ interface EditUserModalProps {
 const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSubmit, user }) => {
   const { isDarkMode } = useTheme();
   const [formData, setFormData] = useState({
-    fullName: '',
+    name: '',
+    surname: '',
     email: '',
     department: '',
-    position: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -28,10 +27,10 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSubmit
   useEffect(() => {
     if (user) {
       setFormData({
-        fullName: user.fullName,
+        name: user.name,
+        surname: user.surname,
         email: user.email,
-        department: user.department,
-        position: user.position,
+        department: '',
       });
     }
   }, [user]);
@@ -42,17 +41,20 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSubmit
     e.preventDefault();
     
     const newErrors: Record<string, string> = {};
-    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    if (!formData.name.trim()) newErrors.name = 'Name is required';
+    if (!formData.surname.trim()) newErrors.surname = 'Surname is required';
     if (!formData.department.trim()) newErrors.department = 'Department is required';
-    if (!formData.position.trim()) newErrors.position = 'Position is required';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    onSubmit(user.id, formData);
+    onSubmit(user.id, {
+      name: formData.name,
+      surname: formData.surname,
+      department: formData.department
+    });
     setErrors({});
   };
 
@@ -86,20 +88,38 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSubmit
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Full Name
+              Name
             </label>
             <input
               type="text"
-              name="fullName"
-              value={formData.fullName}
+              name="name"
+              value={formData.name}
               onChange={handleChange}
               className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
                 isDarkMode 
                   ? 'bg-gray-700 border-gray-600 text-gray-200' 
                   : 'bg-white border-gray-300 text-gray-900'
-              } ${errors.fullName ? 'border-red-500' : ''}`}
+              } ${errors.name ? 'border-red-500' : ''}`}
             />
-            {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
+            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+          </div>
+
+          <div>
+            <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Surname
+            </label>
+            <input
+              type="text"
+              name="surname"
+              value={formData.surname}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                isDarkMode 
+                  ? 'bg-gray-700 border-gray-600 text-gray-200' 
+                  : 'bg-white border-gray-300 text-gray-900'
+              } ${errors.surname ? 'border-red-500' : ''}`}
+            />
+            {errors.surname && <p className="text-red-500 text-xs mt-1">{errors.surname}</p>}
           </div>
 
           <div>
@@ -110,14 +130,14 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSubmit
               type="email"
               name="email"
               value={formData.email}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+              disabled
+              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${
                 isDarkMode 
-                  ? 'bg-gray-700 border-gray-600 text-gray-200' 
-                  : 'bg-white border-gray-300 text-gray-900'
-              } ${errors.email ? 'border-red-500' : ''}`}
+                  ? 'bg-gray-900 border-gray-600 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
             />
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+            <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
           </div>
 
           <div>
@@ -136,24 +156,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSubmit
               } ${errors.department ? 'border-red-500' : ''}`}
             />
             {errors.department && <p className="text-red-500 text-xs mt-1">{errors.department}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Position
-            </label>
-            <input
-              type="text"
-              name="position"
-              value={formData.position}
-              onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                isDarkMode 
-                  ? 'bg-gray-700 border-gray-600 text-gray-200' 
-                  : 'bg-white border-gray-300 text-gray-900'
-              } ${errors.position ? 'border-red-500' : ''}`}
-            />
-            {errors.position && <p className="text-red-500 text-xs mt-1">{errors.position}</p>}
           </div>
 
           <div className="flex gap-3 pt-4">
