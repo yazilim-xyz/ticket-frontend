@@ -70,6 +70,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
       adminOnly: true
     },
     {
+      id: 'create-ticket',
+      label: 'Create Ticket',
+      path: '/create-ticket',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+      ),
+      adminOnly: true
+    },
+    {
       id: 'statistics',
       label: 'Statistics',
       path: '/statistics',
@@ -180,8 +191,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
     }
   };
 
+  // Sidebar.tsx içinde
   const isActive = (path: string) => {
-    return location.pathname === path;
+    const current = location.pathname;
+
+    // Ticket detail route'larını All Tickets menüsüne bağla
+    if (path === "/all-tickets") {
+      return current.startsWith("/all-tickets") || current.startsWith("/ticket/");
+    }
+
+    if (path === "/active-tickets") {
+      return current.startsWith("/active-tickets") || current.startsWith("/ticket/");
+    }
+
+    return current.startsWith(path);
   };
 
   const toggleSidebar = () => {

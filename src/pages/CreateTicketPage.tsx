@@ -5,7 +5,6 @@ import { useTheme } from "../context/ThemeContext";
 import { ticketService } from "../services/ticketService";
 import {
   ArrowLeft,
-  Ticket,
   FileText,
   User as UserIcon,
   Calendar,

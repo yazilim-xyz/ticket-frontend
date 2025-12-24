@@ -22,7 +22,7 @@ const DashboardPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
 
   // Custom hooks ile canlı veri çek
-  const { stats, loading: statsLoading, error: statsError } = useDashboardStats();
+  const { stats, loading: statsLoading} = useDashboardStats();
   const { personalStats, loading: personalLoading } = usePersonalStats();
   const { activityData, loading: activityLoading } = useActivityTrend('week');
   const { messages, sendMessage, loading: chatLoading, sending } = useChatMessages();
@@ -50,17 +50,6 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  // Error state
-  if (statsError) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center text-red-600">
-          <p className="text-xl font-semibold mb-2">Error loading dashboard</p>
-          <p>{statsError}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>

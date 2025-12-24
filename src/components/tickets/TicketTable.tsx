@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ticket } from '../../types';
+import { Ticket } from '../../services/ticketService';
 import TicketActionsMenu from './TicketActionsMenu';
 
 interface TicketTableProps {
@@ -187,10 +187,15 @@ const TicketTable: React.FC<TicketTableProps> = ({
                 <td className="px-8 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-3">
                       {ticket.owner && (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                        {getInitials(ticket.owner.fullName)}
-                      </div>
-                    )}
+                       <>
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+                            {getInitials(ticket.owner)}
+                          </div>
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {ticket.owner}
+                          </span>
+                       </>
+                     )}
                   </div>
                 </td>
 

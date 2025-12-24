@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { AdminUser } from '../../services/adminMockApi';
+import { AdminUser } from '../../types';
 
 interface ChangeRoleModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (userId: string, newRole: 'admin' | 'user') => void;
+  onSubmit: (userId: number, newRole: 'ADMIN' | 'USER') => void;
   user: AdminUser | null;
 }
 
 const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, onSubmit, user }) => {
   const { isDarkMode } = useTheme();
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'user'>('user');
+  const [selectedRole, setSelectedRole] = useState<'ADMIN' | 'USER'>('USER');
 
   useEffect(() => {
     if (user) {
@@ -48,12 +48,12 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, onSu
         <form onSubmit={handleSubmit} className="p-6">
           <div className="mb-6">
             <p className={`text-sm mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Change role for <span className="font-semibold">{user.fullName}</span>
+              Change role for <span className="font-semibold">{user.name} {user.surname}</span>
             </p>
             
             <div className="space-y-3">
               <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                selectedRole === 'user'
+                selectedRole === 'USER'
                   ? isDarkMode
                     ? 'border-teal-500 bg-teal-900/20'
                     : 'border-teal-500 bg-teal-50'
@@ -64,9 +64,9 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, onSu
                 <input
                   type="radio"
                   name="role"
-                  value="user"
-                  checked={selectedRole === 'user'}
-                  onChange={(e) => setSelectedRole(e.target.value as 'admin' | 'user')}
+                  value="USER"
+                  checked={selectedRole === 'USER'}
+                  onChange={(e) => setSelectedRole(e.target.value as 'ADMIN' | 'USER')}
                   className="w-4 h-4 text-teal-600 focus:ring-teal-500"
                 />
                 <div className="ml-3">
@@ -80,7 +80,7 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, onSu
               </label>
 
               <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                selectedRole === 'admin'
+                selectedRole === 'ADMIN'
                   ? isDarkMode
                     ? 'border-teal-500 bg-teal-900/20'
                     : 'border-teal-500 bg-teal-50'
@@ -91,9 +91,9 @@ const ChangeRoleModal: React.FC<ChangeRoleModalProps> = ({ isOpen, onClose, onSu
                 <input
                   type="radio"
                   name="role"
-                  value="admin"
-                  checked={selectedRole === 'admin'}
-                  onChange={(e) => setSelectedRole(e.target.value as 'admin' | 'user')}
+                  value="ADMIN"
+                  checked={selectedRole === 'ADMIN'}
+                  onChange={(e) => setSelectedRole(e.target.value as 'ADMIN' | 'USER')}
                   className="w-4 h-4 text-teal-600 focus:ring-teal-500"
                 />
                 <div className="ml-3">

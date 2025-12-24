@@ -6,8 +6,7 @@ import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
 import UpdateAssignmentModal from '../components/modals/UpdateAssignmentModal';
 import DeleteConfirmationModal from '../components/modals/DeleteConfirmationModal';
-import { ticketService, TicketStatus } from '../services/ticketService';
-import { Ticket } from '../types';
+import { ticketService, TicketStatus, Ticket } from '../services/ticketService';
 
 const AllTicketsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -68,7 +67,9 @@ const AllTicketsPage: React.FC = () => {
 
   const handleStatusUpdate = async (ticketId: string, newStatus: string) => {
     try {
-      await ticketService.updateTicketStatus(parseInt(ticketId), newStatus as TicketStatus);
+      // Convert frontend status to backend enum
+      const backendStatus = convertToBackendStatus(newStatus);
+      await ticketService.updateTicketStatus(parseInt(ticketId), backendStatus);
       await refetch(); // Refresh ticket list
       setIsStatusModalOpen(false);
       setSelectedTicket(null);
@@ -90,6 +91,24 @@ const AllTicketsPage: React.FC = () => {
     }
   };
 
+  // Convert frontend status to backend enum
+  const convertToBackendStatus = (status: string): TicketStatus => {
+    const statusMap: Record<string, TicketStatus> = {
+      'new': 'OPEN',
+      'open': 'OPEN',
+      'in progress': 'IN_PROGRESS',
+      'in_progress': 'IN_PROGRESS',
+      'blocked': 'CANCELLED',
+      'cancelled': 'CANCELLED',
+      'completed': 'RESOLVED',
+      'resolved': 'RESOLVED',
+      'done': 'RESOLVED',
+      'closed': 'CLOSED',
+    };
+    
+    return statusMap[status.toLowerCase()] || 'OPEN';
+  };
+
   // Filter tickets
   const filteredTickets = tickets.filter(ticket => {
     // Search filter
@@ -106,7 +125,7 @@ const AllTicketsPage: React.FC = () => {
     // Status filter
     const matchesStatus = 
       filterStatus === 'all' || 
-      ticket.status.toLowerCase() === filterStatus.toLowerCase();
+      ticket.status.toLowerCase().replace('_', ' ') === filterStatus.toLowerCase().replace('_', ' ');
 
     return matchesSearch && matchesPriority && matchesStatus;
   });
@@ -154,9 +173,11 @@ const AllTicketsPage: React.FC = () => {
           </div>
 
           {/* Page Title */}
-          <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
-            All Tickets
-          </h1>
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
+              All Tickets
+            </h1>
+          </div>
 
           {/* Search & Filter Bar */}
           <div className="flex items-center gap-4">
@@ -192,7 +213,7 @@ const AllTicketsPage: React.FC = () => {
               {showPriorityFilter && (
                 <div className={`absolute right-0 top-12 w-48 rounded-lg border shadow-lg z-10 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                   <div className="p-2">
-                    {['all', 'high', 'medium', 'low'].map((priority) => (
+                    {['all', 'critical', 'high', 'medium', 'low'].map((priority) => (
                       <button
                         key={priority}
                         onClick={() => {
@@ -208,6 +229,7 @@ const AllTicketsPage: React.FC = () => {
                         }`}
                       >
                         {priority === 'all' ? '🗃️ All Priorities' : 
+                         priority === 'critical' ? '🟣 Critical' :
                          priority === 'high' ? '🔴 High Priority' :
                          priority === 'medium' ? '🟡 Medium Priority' :
                          '🟢 Low Priority'}

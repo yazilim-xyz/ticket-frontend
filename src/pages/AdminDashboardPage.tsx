@@ -24,7 +24,7 @@ const AdminDashboardPage: React.FC = () => {
   const [activityPeriod, setActivityPeriod] = useState<'week' | 'month' | 'year'>('week');
 
   // Fetch all admin dashboard data
-  const { stats, loading: statsLoading, error: statsError } = useAdminDashboardStats();
+  const { stats, loading: statsLoading } = useAdminDashboardStats();
   const { agents, loading: agentsLoading } = useAgentPerformance();
   const { recentTickets, loading: recentTicketsLoading } = useRecentTickets();
   const { distribution, loading: distributionLoading } = useTicketDistribution();
@@ -56,17 +56,6 @@ const AdminDashboardPage: React.FC = () => {
     );
   }
 
-  // Error state
-  if (statsError) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center text-red-600">
-          <p className="text-xl font-semibold mb-2">Error loading dashboard</p>
-          <p>{statsError}</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
@@ -164,7 +153,7 @@ const AdminDashboardPage: React.FC = () => {
         <div className="px-8 py-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {/* CARD 1: Total Team Tickets - Sistemdeki tüm ticketların toplamı */}
+            {/* CARD 1: Total Team Tickets - Sistemdeki tÃ¼m ticketlarÄ±n toplamÄ± */}
             <StatCard
               title="Total Team Tickets"
               value={stats?.totalTeamTickets ?? 0}
@@ -180,7 +169,7 @@ const AdminDashboardPage: React.FC = () => {
               }
             />
 
-            {/* CARD 2: Total Users - Sistemdeki toplam kullanıcı sayısı (login status takibi yok) */}
+            {/* CARD 2: Total Users - Sistemdeki toplam kullanÄ±cÄ± sayÄ±sÄ± (login status takibi yok) */}
             <StatCard
               title="Total Users"
               value={stats?.totalUsers ?? 0}
@@ -196,7 +185,7 @@ const AdminDashboardPage: React.FC = () => {
               }
             />
 
-            {/* CARD 3: Resolved This Week - Bu hafta içinde (son 7 gün) çözülen ticket sayısı */}
+            {/* CARD 3: Resolved This Week - Bu hafta iÃ§inde (son 7 gÃ¼n) Ã§Ã¶zÃ¼len ticket sayÄ±sÄ± */}
             <StatCard
               title="Resolved This Week"
               value={stats?.resolvedThisWeek ?? 0}
@@ -212,7 +201,7 @@ const AdminDashboardPage: React.FC = () => {
               }
             />
 
-            {/* CARD 4: Total Open Tickets - Açık durumda olan (new, in_progress, blocked) ticketların toplamı */}
+            {/* CARD 4: Total Open Tickets - AÃ§Ä±k durumda olan (new, in_progress, blocked) ticketlarÄ±n toplamÄ± */}
             <StatCard
               title="Total Open Tickets"
               value={stats?.totalOpenTickets ?? 0}

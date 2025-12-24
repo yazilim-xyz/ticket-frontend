@@ -1,32 +1,71 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
-import { adminMockApi, ActivityLog } from '../services/adminMockApi';
+import { useAuth } from '../context/AuthContext';
+import { activityLogService, ActivityLog } from '../services/activityLogService';
 
 const ActivityLogPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'ticket' | 'user' | 'system'>('all');
   const [filterDate, setFilterDate] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  // ============================================
+  // DATA FETCHING
+  // ============================================
 
   useEffect(() => {
     const fetchLogs = async () => {
+      if (!user?.id) {
+        console.warn('⚠️ User ID not available');
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const logs = await adminMockApi.getActivityLogs();
-        setActivityLogs(logs);
-      } catch (error) {
-        console.error('Failed to fetch activity logs:', error);
+        setIsLoading(true);
+        
+        console.log(`📊 Fetching activity logs for user ${user.id}`);
+        
+        // Backend'den activity log'ları çek
+        const response = await activityLogService.getUserActivityLogs(
+          user.id,
+          currentPage,
+          20 // page size
+        );
+
+        // Backend response'u frontend formatına dönüştür
+        const userName = user.Name && user.Surname 
+          ? `${user.Name} ${user.Surname}` 
+          : user.email || 'User';
+          
+        const formattedLogs = response.content.map(activity => 
+          activityLogService.mapToActivityLog(activity, userName)
+        );
+
+        setActivityLogs(formattedLogs);
+        setTotalPages(response.totalPages);
+        
+        console.log(`✅ Loaded ${formattedLogs.length} activity logs`);
+      } catch (error: any) {
+        console.error('❌ Failed to fetch activity logs:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchLogs();
-  }, []);
+  }, [user, currentPage]);
 
-  // Filter logs
+  // ============================================
+  // FILTERING
+  // ============================================
+  
   const filteredLogs = activityLogs.filter(log => {
     const matchesSearch = 
       log.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -34,10 +73,10 @@ const ActivityLogPage: React.FC = () => {
     
     const matchesType = filterType === 'all' || log.type === filterType;
     
-    // Date filtering
+    // Date filtering using createdAt (ISO format)
     let matchesDate = true;
-    if (filterDate !== 'all') {
-      const logDate = new Date(log.timestamp);
+    if (filterDate !== 'all' && log.createdAt) {
+      const logDate = new Date(log.createdAt);
       const now = new Date();
       
       if (filterDate === 'today') {
@@ -53,6 +92,10 @@ const ActivityLogPage: React.FC = () => {
     
     return matchesSearch && matchesType && matchesDate;
   });
+
+  // ============================================
+  // HELPER FUNCTIONS
+  // ============================================
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -181,25 +224,20 @@ const ActivityLogPage: React.FC = () => {
         </div>
 
         {/* Filters */}
-        <div className={`px-8 py-4 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center gap-4">
+        <div className="px-8 py-4">
+          <div className="flex flex-wrap gap-4">
             {/* Search */}
-            <div className="flex-1 relative">
-              <svg className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search activities..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500' 
-                    : 'bg-white border-gray-300 text-gray-700 placeholder-gray-400'
-                }`}
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="Search activities..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`flex-1 min-w-[300px] px-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                isDarkMode 
+                  ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400' 
+                  : 'bg-white border-gray-300 text-gray-700 placeholder-gray-500'
+              }`}
+            />
 
             {/* Type Filter */}
             <select
@@ -302,6 +340,45 @@ const ActivityLogPage: React.FC = () => {
                 ))
               )}
             </div>
+
+            {/* Pagination */}
+            {!isLoading && totalPages > 1 && (
+              <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Page {currentPage + 1} of {totalPages}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                      disabled={currentPage === 0}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === 0
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:bg-teal-700'
+                      } ${
+                        isDarkMode ? 'bg-teal-600 text-white' : 'bg-teal-500 text-white'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                      disabled={currentPage >= totalPages - 1}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage >= totalPages - 1
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:bg-teal-700'
+                      } ${
+                        isDarkMode ? 'bg-teal-600 text-white' : 'bg-teal-500 text-white'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
