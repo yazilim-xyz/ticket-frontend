@@ -4,32 +4,66 @@ import apiClient from '../utils/apiClient';
 /**
  * Calendar Service - Backend Integration
  * 
- * Bu servis ticket endpoint'lerini kullanarak calendar event'lerini yönetir.
- * Backend'de özel calendar endpoint'i olmadığı için ticket'ları tarih bazlı filtreler.
+ * Admin: Tüm ticket'ları görür
+ * User: Sadece kendisine atanan ticket'ları görür
  */
+
+// Get current user from sessionStorage
+const getCurrentUser = (): { id: number; name: string; surname: string; email: string; role: string } | null => {
+  const user = sessionStorage.getItem('user');
+  if (user) {
+    return JSON.parse(user);
+  }
+  return null;
+};
+
 class CalendarService {
   /**
    * Belirtilen yıl ve ay için calendar event'lerini getir
    * 
-   * Parametreler: Yıl (örn: 2025) - Ay (1-12, 1 = Ocak)
-   * Return: CalendarEvent array
+   * Admin: Tüm ticket'ları getirir
+   * User: Sadece kendisine atanan ticket'ları getirir
    */
   async getEvents(year: number, month: number): Promise<CalendarEvent[]> {
     try {
-      console.log(`📅 Fetching calendar events for ${year}-${month}`);
-      
-      const response = await apiClient.get('/api/admin/tickets', {
-        params: {
-          page: 0,
-          size: 1000,
-          sort: 'createdAt,asc'
-        }
-      });
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
 
-      const tickets = response.data.content || response.data;
-      
-      console.log(`📥 Received ${tickets.length} tickets from backend`);
-      
+      const isAdmin = currentUser.role === 'ADMIN';
+      let tickets: any[] = [];
+
+      console.log(`📅 Fetching calendar events for ${year}-${month} (${isAdmin ? 'ADMIN' : 'USER'})`);
+
+      if (isAdmin) {
+        // ADMIN: Tüm ticket'ları getir
+        try {
+          const response = await apiClient.get('/api/admin/tickets', {
+            params: {
+              page: 0,
+              size: 1000,
+              sort: 'createdAt,asc'
+            }
+          });
+          tickets = response.data.content || response.data || [];
+          console.log(`📥 Admin: Received ${tickets.length} total tickets`);
+        } catch (err) {
+          console.error('❌ Error fetching admin tickets:', err);
+          tickets = [];
+        }
+      } else {
+        // USER: Sadece kendisine atanan ticket'ları getir
+        try {
+          const response = await apiClient.get('/api/tickets/my-assigned');
+          tickets = response.data || [];
+          console.log(`📥 User: Received ${tickets.length} assigned tickets`);
+        } catch (err) {
+          console.error('❌ Error fetching user tickets:', err);
+          tickets = [];
+        }
+      }
+
       // Ay ve yıla göre filtrele - dueDate yoksa createdAt kullan
       const filteredEvents = tickets
         .filter((ticket: any) => {
@@ -51,7 +85,7 @@ class CalendarService {
       return filteredEvents;
     } catch (error: any) {
       console.error('❌ Error fetching calendar events:', error);
-      throw new Error('Failed to fetch calendar events');
+      return []; // Hata durumunda boş array dön, UI crash olmasın
     }
   }
 
@@ -64,7 +98,7 @@ class CalendarService {
       ticketId: `TCK-${ticket.id}`,
       title: ticket.title || 'Untitled',
       description: ticket.description || '',
-      date: ticket.dueDate || ticket.createdAt, // dueDate yoksa createdAt kullan
+      date: ticket.dueDate || ticket.createdAt,
       type: 'ticket',
       priority: this.normalizePriority(ticket.priority),
       status: this.mapStatus(ticket.status),
@@ -97,7 +131,7 @@ class CalendarService {
       'IN_PROGRESS': 'In Progress',
       'RESOLVED': 'Done',
       'CLOSED': 'Done',
-      'CANCELLED': 'Open' // Cancelled ticket'ları Open olarak göster
+      'CANCELLED': 'Open'
     };
     
     return statusMap[status] || 'Open';
@@ -116,20 +150,18 @@ class CalendarService {
       'LOW': '#10b981'        // Yeşil
     };
     
-    return colorMap[normalized] || '#06b6d4'; // Cyan
+    return colorMap[normalized] || '#06b6d4'; // Default: Cyan
   }
 
   /**
    * assignedTo bilgisini formatla
    */
   private formatAssignedTo(ticket: any): string {
-    // Backend'den assignedToEmail veya assignedTo object gelebilir
     if (ticket.assignedToEmail) {
       return ticket.assignedToEmail;
     }
     
     if (ticket.assignedTo) {
-      // Object ise name + surname birleştir
       if (typeof ticket.assignedTo === 'object') {
         const name = ticket.assignedTo.name || '';
         const surname = ticket.assignedTo.surname || '';
@@ -143,45 +175,73 @@ class CalendarService {
 
   /**
    * Event'i "Done" olarak işaretle
+   * Admin ve User için farklı endpoint kullanır
    */
   async markAsDone(eventId: string): Promise<void> {
     try {
-      console.log(`✅ Marking ticket ${eventId} as RESOLVED`);
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      const isAdmin = currentUser.role === 'ADMIN';
       
-      // FIX: /admin/tickets -> /api/admin/tickets
-      await apiClient.patch(`/api/admin/tickets/${eventId}/status`, {
-        status: 'RESOLVED'
-      });
+      console.log(`✅ Marking ticket ${eventId} as RESOLVED (${isAdmin ? 'ADMIN' : 'USER'})`);
+
+      if (isAdmin) {
+        // Admin endpoint
+        await apiClient.patch(`/api/admin/tickets/${eventId}/status`, {
+          status: 'RESOLVED'
+        });
+      } else {
+        // User endpoint (TicketController.java'da mevcut)
+        await apiClient.patch(`/api/tickets/${eventId}/status`, {
+          status: 'RESOLVED'
+        });
+      }
       
       console.log(`✅ Ticket ${eventId} marked as RESOLVED successfully`);
     } catch (error: any) {
       console.error(`❌ Error marking ticket ${eventId} as done:`, error);
-      console.error('Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
       throw new Error('Failed to mark ticket as done');
     }
   }
 
   /**
-   * Yeni event ekle (gelecekte kullanılabilir)
-   * Şu an için ticket oluşturma olarak çalışır
+   * Yeni event/ticket ekle
+   * Admin ve User için farklı endpoint kullanır
    */
   async addEvent(event: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> {
     try {
-      console.log('➕ Creating new ticket:', event);
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      const isAdmin = currentUser.role === 'ADMIN';
       
-      // FIX: /admin/tickets -> /api/admin/tickets
-      const response = await apiClient.post('/api/admin/tickets', {
+      console.log(`➕ Creating new ticket (${isAdmin ? 'ADMIN' : 'USER'}):`, event);
+
+      const ticketData = {
         title: event.title,
         description: event.description,
-        priority: (event.priority || 'MEDIUM').toUpperCase(), // high → HIGH
-        category: (event.tags && event.tags[0]) ? event.tags[0] : 'GENERAL',
+        priority: (event.priority || 'MEDIUM').toUpperCase(),
+        category: (event.tags && event.tags[0]) ? event.tags[0].toUpperCase() : 'GENERAL',
         dueDate: event.date,
-        // assignedToId gerekirse eklenebilir
-      });
+      };
+
+      let response;
+
+      if (isAdmin) {
+        // Admin endpoint
+        response = await apiClient.post('/api/admin/tickets', ticketData);
+      } else {
+        // User endpoint (TicketController.java'da mevcut)
+        response = await apiClient.post('/api/tickets', {
+          ...ticketData,
+          createdById: currentUser.id
+        });
+      }
 
       const newTicket = response.data;
       const newEvent = this.mapTicketToEvent(newTicket);

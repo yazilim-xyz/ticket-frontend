@@ -6,18 +6,23 @@ function getAuthToken(): string | null {
   return sessionStorage.getItem("accessToken");
 }
 
-// Kullanıcı rolünü al
-function getUserRole(): string | null {
+// Kullanıcı bilgisini al
+function getCurrentUser(): { id: number; name: string; surname: string; email: string; role: string } | null {
   const userStr = sessionStorage.getItem("user");
   if (userStr) {
     try {
-      const user = JSON.parse(userStr);
-      return user.role?.toUpperCase() || null;
+      return JSON.parse(userStr);
     } catch {
       return null;
     }
   }
   return null;
+}
+
+// Kullanıcı rolünü al
+function getUserRole(): string | null {
+  const user = getCurrentUser();
+  return user?.role?.toUpperCase() || null;
 }
 
 // Admin mi kontrol et
@@ -80,9 +85,6 @@ async function authenticatedFetch(
   return res;
 }
 
-// ============================================
-// TICKET SERVICE
-// ============================================
 // ===========================
 // BACKEND DTO TYPES
 // ===========================
@@ -92,20 +94,23 @@ type TicketDto = {
   description: string;
   status: string;
   priority: string;
+  category?: string | null;
 
-  // senin backend örneğinde bunlar var:
+  // Backend'den gelen alanlar
   ownerId?: number | null;
   ownerEmail?: string | null;
+  ownerName?: string | null;
 
   assignedToId?: number | null;
   assignedToEmail?: string | null;
+  assignedToName?: string | null;
 
   createdAt: string;
   updatedAt: string;
-
-  // backend varsa diğerleri:
-  category?: string | null;
   dueDate?: string | null;
+
+  // TicketSimpledto alanları
+  createdByName?: string | null;
 };
 
 type PageDto<T> = { content: T[] } | T[];
@@ -114,15 +119,17 @@ type PageDto<T> = { content: T[] } | T[];
 // MAPPER (DTO -> Frontend Ticket)
 // ===========================
 function mapTicketDtoToTicket(dto: TicketDto): Ticket {
-  const assignee =
-    dto.assignedToEmail
-      ? { firstName: dto.assignedToEmail, lastName: '' } // TicketTable bunu string gibi basacak
-      : undefined;
+  // Assignee bilgisi
+  const assigneeName = dto.assignedToName || dto.assignedToEmail || '';
+  const assignee = assigneeName
+    ? { firstName: assigneeName.split(' ')[0] || assigneeName, lastName: assigneeName.split(' ').slice(1).join(' ') || '' }
+    : undefined;
 
-  const owner =
-    dto.ownerEmail
-      ? { firstName: dto.ownerEmail, lastName: '' }
-      : undefined;
+  // Owner bilgisi
+  const ownerName = dto.ownerName || dto.ownerEmail || dto.createdByName || '';
+  const owner = ownerName
+    ? { firstName: ownerName.split(' ')[0] || ownerName, lastName: ownerName.split(' ').slice(1).join(' ') || '' }
+    : undefined;
 
   return {
     id: String(dto.id),
@@ -132,15 +139,15 @@ function mapTicketDtoToTicket(dto: TicketDto): Ticket {
     priority: dto.priority as any,
     status: dto.status as any,
 
-    // eski tiplerin bozulmaması için:
-    assignedTo: dto.assignedToId ? String(dto.assignedToId) : '',
-    createdBy: dto.ownerId ? String(dto.ownerId) : '',
+    // String değerler (eski uyumluluk için)
+    assignedTo: dto.assignedToEmail || dto.assignedToName || (dto.assignedToId ? String(dto.assignedToId) : ''),
+    createdBy: dto.ownerEmail || dto.createdByName || (dto.ownerId ? String(dto.ownerId) : ''),
 
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
     dueDate: dto.dueDate ?? '',
 
-    // TicketTable artık buradan basacak:
+    // Object değerler (TicketTable için)
     assignee,
     owner,
 
@@ -155,37 +162,61 @@ function extractContent<T>(data: PageDto<T>): T[] {
 
 class TicketService {
   /* =======================
-     GET ALL TICKETS
-     Admin: GET /api/admin/tickets (tüm ticket'lar)
-     User: GET /api/tickets (kendi ticket'ları)
+     GET ALL TICKETS (Admin için)
+     Admin: GET /api/admin/tickets
   ======================= */
-  async getTickets(userId?: string): Promise<Ticket[]> {
-    // Role'e göre endpoint seç
-    const endpoint = isAdmin() 
-      ? `${API_BASE_URL}/api/admin/tickets?page=0&size=1000`
-      : `${API_BASE_URL}/api/tickets`;
-    
-    const url = userId
-      ? `${endpoint}?userId=${encodeURIComponent(userId)}`
-      : endpoint;
-
-    console.log(`📋 Fetching tickets from: ${url} (isAdmin: ${isAdmin()})`);
+  async getAllTickets(): Promise<Ticket[]> {
+    const url = `${API_BASE_URL}/api/admin/tickets?page=0&size=1000`;
+    console.log('📋 Admin: Fetching all tickets from:', url);
 
     const res = await authenticatedFetch(url, { method: "GET" });
     const data = await res.json();
     
-    // Backend paginated response döndürüyorsa content'i al
     const dtos = extractContent<TicketDto>(data);
     return dtos.map(mapTicketDtoToTicket);
+  }
+
+  /* =======================
+     GET MY ASSIGNED TICKETS (User için)
+     User: GET /api/tickets/my-assigned
+  ======================= */
+  async getMyAssignedTickets(): Promise<Ticket[]> {
+    const url = `${API_BASE_URL}/api/tickets/my-assigned`;
+    console.log('📋 User: Fetching my assigned tickets from:', url);
+
+    const res = await authenticatedFetch(url, { method: "GET" });
+    const data = await res.json();
     
+    // my-assigned array döndürüyor (paginated değil)
+    const dtos = Array.isArray(data) ? data : (data.content || []);
+    return dtos.map(mapTicketDtoToTicket);
+  }
+
+  /* =======================
+     GET TICKETS (Role'e göre otomatik seç)
+     Admin: Tüm ticket'lar
+     User: Sadece kendisine atananlar
+  ======================= */
+  async getTickets(): Promise<Ticket[]> {
+    if (isAdmin()) {
+      return this.getAllTickets();
+    } else {
+      return this.getMyAssignedTickets();
+    }
   }
 
   /* =======================
      GET TICKET BY ID
      Admin: GET /api/admin/tickets/{id}
+     User: GET /api/tickets/{id}/detail
   ======================= */
   async getTicketById(id: string): Promise<Ticket> {
-    const endpoint = `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}`;
+    const endpoint = isAdmin()
+      ? `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}`
+      : `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/detail`;
+    
+    console.log('📋 Fetching ticket detail from:', endpoint);
+    
     const res = await authenticatedFetch(endpoint, { method: "GET" });
     const dto: TicketDto = await res.json();
     return mapTicketDtoToTicket(dto);
@@ -202,13 +233,20 @@ class TicketService {
     priority: "HIGH" | "MEDIUM" | "LOW" | "CRITICAL";
     category?: "BUG" | "FEATURE" | "SUPPORT" | "OTHER";
   }): Promise<Ticket> {
+    const currentUser = getCurrentUser();
+    
     const endpoint = isAdmin()
       ? `${API_BASE_URL}/api/admin/tickets`
       : `${API_BASE_URL}/api/tickets`;
     
+    // User için createdById ekle
+    const body = isAdmin() 
+      ? payload 
+      : { ...payload, createdById: currentUser?.id };
+    
     const res = await authenticatedFetch(endpoint, {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
     
     const dto: TicketDto = await res.json();
@@ -217,40 +255,62 @@ class TicketService {
 
   /* =======================
      ASSIGN TICKET
-     Admin: PATCH /api/admin/tickets/{id}/assign
-     User: PATCH /api/tickets/{id}/assign
+     Admin: PATCH /api/admin/tickets/{id}/assign (returns void)
+     User: PATCH /api/tickets/{id}/assign (returns TicketDto)
   ======================= */
-  async assignTicket(id: string, assignedToId: number): Promise<Ticket> {
+  async assignTicket(id: string, assignedToId: number): Promise<Ticket | { success: boolean }> {
     const endpoint = isAdmin()
       ? `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}/assign`
       : `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/assign`;
     
+    // Admin endpoint expects { assignedToUserId }, User endpoint expects { assignedToId }
+    const body = isAdmin()
+      ? { assignedToUserId: assignedToId }
+      : { assignedToId };
+    
     const res = await authenticatedFetch(endpoint, {
       method: "PATCH",
-      body: JSON.stringify({ assignedToId }),
+      body: JSON.stringify(body),
     });
     
-    const dto: TicketDto = await res.json();
-    return mapTicketDtoToTicket(dto);
+    // Admin endpoint returns void, User endpoint returns TicketDto
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const text = await res.text();
+      if (text) {
+        const dto: TicketDto = JSON.parse(text);
+        return mapTicketDtoToTicket(dto);
+      }
+    }
+    
+    return { success: true };
   }
 
   /* =======================
      GET ALL USERS (Dropdown için)
-     Admin endpoint kullan
+     GET /api/users
   ======================= */
-  async getUsers(): Promise<{ id: number; fullName: string; role?: string }[]> {
-    const url = `${API_BASE_URL}/api/admin/users`;
+  async getUsers(): Promise<{ id: number; fullName: string; email: string; role?: string }[]> {
+    const url = `${API_BASE_URL}/api/users`;
     const res = await authenticatedFetch(url, { method: "GET" });
     const data = await res.json();
-    return data.content || data;
+    
+    // UserListItemDto: { id, name, surname, email, role }
+    const users = Array.isArray(data) ? data : (data.content || []);
+    return users.map((u: any) => ({
+      id: u.id,
+      fullName: `${u.name || ''} ${u.surname || ''}`.trim(),
+      email: u.email,
+      role: u.role,
+    }));
   }
 
   /* =======================
      UPDATE TICKET STATUS
-     Admin: PATCH /api/admin/tickets/{id}/status
-     User: PATCH /api/tickets/{id}/status
+     Admin: PATCH /api/admin/tickets/{id}/status (returns void)
+     User: PATCH /api/tickets/{id}/status (returns TicketDto)
   ======================= */
-  async updateTicketStatus(id: string, status: string): Promise<any> {
+  async updateTicketStatus(id: string | number, status: string): Promise<any> {
     const endpoint = isAdmin()
       ? `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}/status`
       : `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/status`;
@@ -262,7 +322,18 @@ class TicketService {
       }),
     });
 
-    return res.json();
+    // Admin endpoint returns void (204 No Content), User endpoint returns TicketDto
+    // Check if response has content before parsing JSON
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const text = await res.text();
+      if (text) {
+        return JSON.parse(text);
+      }
+    }
+    
+    // Return success indicator for void responses
+    return { success: true };
   }
 
   /* =======================
@@ -298,10 +369,13 @@ class TicketService {
   }
 
   /* =======================
-     DELETE TICKET
+     DELETE TICKET (Sadece Admin)
      Admin: DELETE /api/admin/tickets/{id}
   ======================= */
   async deleteTicket(id: string): Promise<void> {
+    if (!isAdmin()) {
+      throw new Error("Sadece admin ticket silebilir.");
+    }
     const url = `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}`;
     await authenticatedFetch(url, { method: "DELETE" });
   }
@@ -320,11 +394,16 @@ class TicketService {
      ADD COMMENT
      POST /api/tickets/{id}/comments
   ======================= */
-  async addComment(ticketId: string, comment: string): Promise<any> {
+  async addComment(ticketId: string, content: string): Promise<any> {
+    const currentUser = getCurrentUser();
     const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(ticketId)}/comments`;
+    
     const res = await authenticatedFetch(url, {
       method: "POST",
-      body: JSON.stringify({ comment }),
+      body: JSON.stringify({ 
+        content,
+        authorId: currentUser?.id 
+      }),
     });
     return res.json();
   }
@@ -335,15 +414,6 @@ class TicketService {
   ======================= */
   async getTopResolvers(): Promise<any[]> {
     const url = `${API_BASE_URL}/api/tickets/analytics/top-resolvers`;
-    const res = await authenticatedFetch(url, { method: "GET" });
-    return res.json();
-  }
-
-  /* =======================
-     PERFORMANCE STATS
-  ======================= */
-  async getPerformanceStats(): Promise<any> {
-    const url = `${API_BASE_URL}/api/tickets/stats/performance`;
     const res = await authenticatedFetch(url, { method: "GET" });
     return res.json();
   }

@@ -351,8 +351,10 @@ class AdminDashboardService {
   }
 
   // GET OVERDUE TICKETS
+  // Uses /api/tickets/{id}/detail endpoint because AdminTicketResponseDto doesn't have dueDate
   async getOverdueTickets(): Promise<OverdueTicket[]> {
     try {
+      // Step 1: Get all tickets from admin endpoint (to get IDs and filter by status)
       const response = await apiClient.get('/api/admin/tickets', {
         params: {
           page: 0,
@@ -361,45 +363,65 @@ class AdminDashboardService {
       });
 
       const tickets = response.data.content || [];
+      
+      // Step 2: Filter only open tickets (OPEN, IN_PROGRESS, BLOCKED) - these are candidates for overdue
+      const openTickets = tickets.filter((ticket: any) => 
+        ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS' || ticket.status === 'BLOCKED'
+      );
+
+      if (openTickets.length === 0) {
+        return [];
+      }
+
+      // Step 3: Fetch detail for each open ticket to get dueDate (parallel requests)
+      const detailPromises = openTickets.map((ticket: any) =>
+        apiClient.get(`/api/tickets/${ticket.id}/detail`).catch(() => null)
+      );
+      
+      const detailResponses = await Promise.all(detailPromises);
       const now = new Date();
 
-      const overdueTickets = tickets
-        .filter((ticket: any) => {
-          if (!ticket.dueDate) return false;
-          const dueDate = new Date(ticket.dueDate);
-          return dueDate < now && (ticket.status !== 'RESOLVED' && ticket.status !== 'CLOSED');
-        })
-        .map((ticket: any) => {
-          const dueDate = new Date(ticket.dueDate);
-          const diffMs = now.getTime() - dueDate.getTime();
-          const daysOverdue = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      // Step 4: Filter overdue tickets and map to OverdueTicket format
+      const overdueTickets: OverdueTicket[] = [];
 
-          let priority = 'Medium';
-          if (ticket.priority === 'HIGH') priority = 'High';
-          else if (ticket.priority === 'LOW') priority = 'Low';
+      detailResponses.forEach((detailResponse) => {
+        if (!detailResponse || !detailResponse.data) return;
+        
+        const ticket = detailResponse.data;
+        
+        // Check if ticket has dueDate and is overdue
+        if (!ticket.dueDate) return;
+        
+        const dueDate = new Date(ticket.dueDate);
+        if (dueDate >= now) return; // Not overdue
+        
+        const diffMs = now.getTime() - dueDate.getTime();
+        const daysOverdue = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-          const assignedTo = ticket.assignedToEmail 
-            ? ticket.assignedToEmail.split('@')[0]
-            : 'Unassigned';
-          
-          const assignedToAvatar = assignedTo !== 'Unassigned'
-            ? assignedTo.substring(0, 2).toUpperCase()
-            : 'UN';
+        let priority: 'High' | 'Medium' | 'Low' = 'Medium';
+        if (ticket.priority === 'HIGH') priority = 'High';
+        else if (ticket.priority === 'LOW') priority = 'Low';
 
-          return {
-            id: `overdue_${ticket.id}`,
-            ticketId: `TCK-${ticket.id}`,
-            title: ticket.title,
-            priority,
-            assignedTo,
-            assignedToAvatar,
-            daysOverdue,
-            createdAt: ticket.createdAt,
-            dueDate: ticket.dueDate,
-          };
+        const assignedTo = ticket.assignedToName || 'Unassigned';
+        const assignedToAvatar = assignedTo !== 'Unassigned'
+          ? assignedTo.substring(0, 2).toUpperCase()
+          : 'UN';
+
+        overdueTickets.push({
+          id: `overdue_${ticket.id}`,
+          ticketId: `TCK-${ticket.id}`,
+          title: ticket.title,
+          priority,
+          assignedTo,
+          assignedToAvatar,
+          daysOverdue,
+          createdAt: ticket.createdAt,
+          dueDate: ticket.dueDate,
         });
+      });
 
-      return overdueTickets;
+      // Sort by daysOverdue (most overdue first)
+      return overdueTickets.sort((a, b) => b.daysOverdue - a.daysOverdue);
     } catch (error) {
       console.error('Error fetching overdue tickets:', error);
       return [];

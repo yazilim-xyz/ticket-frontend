@@ -1,14 +1,15 @@
-import React, { useState, useMemo} from 'react';
+import React, { useState, useMemo } from 'react';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
 import { useTickets } from '../hooks/useTickets';
 import TicketTable from '../components/tickets/TicketTable';
 import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
 import { ticketService } from '../services/ticketService';
-import { TicketStatus, Ticket } from '../types';
+import { Ticket } from '../types';
 
 const ActiveTicketsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -19,43 +20,24 @@ const ActiveTicketsPage: React.FC = () => {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   
-  // Fetch all tickets
+  // Fetch tickets - useTickets hook otomatik olarak user için my-assigned kullanır
   const { tickets, loading, refetch } = useTickets();
 
-  // Get current user info from localStorage
-  const currentUserId = localStorage.getItem('userId') || '';
-  const currentUserName = `${localStorage.getItem('name') || ''} ${localStorage.getItem('surname') || ''}`.trim();
-  const currentUserEmail = localStorage.getItem('userEmail') || '';
-
-  console.log('🔍 Current User:', { currentUserId, currentUserName, currentUserEmail });
-
-  // Filter tickets assigned to current user
-  const myTickets = useMemo(() => {
-    return tickets.filter(ticket => {
-      const assigned = (ticket.assignedTo || '').toLowerCase();
-      const owner = (ticket.owner || '').toLowerCase();
-
-      const name = currentUserName.toLowerCase();
-      const email = currentUserEmail.toLowerCase();
-
-    return assigned.includes(name) || assigned.includes(email) || owner.includes(name) || owner.includes(email);
-  });
-  }, [tickets, currentUserName, currentUserEmail]);
-
-  const handleUpdateStatus = (ticketId: string) => {
-    const ticket = myTickets.find(t => t.id === ticketId);
+  // Status güncelleme modalını aç
+  const handleUpdateStatus = (ticketId: string | number) => {
+    const ticket = tickets.find(t => t.id === String(ticketId));
     if (ticket) {
       setSelectedTicket(ticket);
       setIsStatusModalOpen(true);
     }
   };
 
+  // Status güncelle - Artık direkt backend status değerini gönderiyor
   const handleStatusUpdate = async (ticketId: string, newStatus: string) => {
     try {
-      // Convert frontend status to backend TicketStatus enum
-      const backendStatus = convertToBackendStatus(newStatus);
-      await ticketService.updateTicketStatus(parseInt(ticketId), backendStatus);
-      await refetch(); // Refresh ticket list
+      // newStatus artık direkt backend değeri (OPEN, IN_PROGRESS, etc.)
+      await ticketService.updateTicketStatus(ticketId, newStatus);
+      await refetch();
       setIsStatusModalOpen(false);
       setSelectedTicket(null);
     } catch (error) {
@@ -64,31 +46,14 @@ const ActiveTicketsPage: React.FC = () => {
     }
   };
 
-  // Convert frontend status values to backend enum values
-  const convertToBackendStatus = (status: string): TicketStatus => {
-    const statusMap: Record<string, TicketStatus> = {
-      'new': 'OPEN',
-      'open': 'OPEN',
-      'in progress': 'IN_PROGRESS',
-      'in_progress': 'IN_PROGRESS',
-      'blocked': 'CANCELLED', // or keep as custom status if backend supports
-      'completed': 'RESOLVED',
-      'resolved': 'RESOLVED',
-      'done': 'RESOLVED',
-      'closed': 'CLOSED',
-    };
-    
-    return statusMap[status.toLowerCase()] || 'OPEN';
-  };
-
-  // Filter tickets
-  const filteredMyTickets = useMemo(() => {
-    return myTickets.filter(ticket => {
+  // Filtreleme
+  const filteredTickets = useMemo(() => {
+    return tickets.filter(ticket => {
       // Search filter
       const matchesSearch = 
         ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.project.toLowerCase().includes(searchQuery.toLowerCase());
+        (ticket.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (ticket.category || '').toLowerCase().includes(searchQuery.toLowerCase());
 
       // Priority filter
       const matchesPriority = 
@@ -98,16 +63,16 @@ const ActiveTicketsPage: React.FC = () => {
       // Status filter
       const matchesStatus = 
         filterStatus === 'all' || 
-        ticket.status.toLowerCase().replace('_', ' ') === filterStatus.toLowerCase().replace('_', ' ');
+        ticket.status.toUpperCase() === filterStatus.toUpperCase();
 
       return matchesSearch && matchesPriority && matchesStatus;
     });
-  }, [myTickets, searchQuery, filterPriority, filterStatus]);
+  }, [tickets, searchQuery, filterPriority, filterStatus]);
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar isDarkMode = {isDarkMode} />
+      <Sidebar isDarkMode={isDarkMode} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
@@ -148,9 +113,14 @@ const ActiveTicketsPage: React.FC = () => {
 
           {/* Page Title */}
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9">
-              Active Tickets
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9">
+                My Active Tickets
+              </h1>
+              <span className={`text-sm px-2 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                {filteredTickets.length}
+              </span>
+            </div>
           </div>
 
           {/* Search & Filter Bar */}
@@ -176,12 +146,20 @@ const ActiveTicketsPage: React.FC = () => {
                   setShowPriorityFilter(!showPriorityFilter);
                   setShowStatusFilter(false);
                 }}
-                className={`h-10 px-4 rounded-lg border flex items-center gap-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-neutral-200 text-black'}`}
+                className={`h-10 px-4 rounded-lg border flex items-center gap-2 ${
+                  filterPriority !== 'all' 
+                    ? 'bg-cyan-100 border-cyan-300 text-cyan-700' 
+                    : isDarkMode 
+                      ? 'bg-gray-800 border-gray-700 text-gray-200' 
+                      : 'bg-white border-neutral-200 text-black'
+                }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                <span className="text-sm font-medium">Priority</span>
+                <span className="text-sm font-medium">
+                  {filterPriority === 'all' ? 'Priority' : filterPriority.charAt(0).toUpperCase() + filterPriority.slice(1)}
+                </span>
               </button>
               
               {showPriorityFilter && (
@@ -203,10 +181,10 @@ const ActiveTicketsPage: React.FC = () => {
                         }`}
                       >
                         {priority === 'all' ? '🗃️ All Priorities' : 
-                         priority === 'critical' ? '🟣 Critical Priority' :
-                         priority === 'high' ? '🔴 High Priority' :
-                         priority === 'medium' ? '🟡 Medium Priority' :
-                         '🟢 Low Priority'}
+                         priority === 'critical' ? '🟣 Critical' :
+                         priority === 'high' ? '🔴 High' :
+                         priority === 'medium' ? '🟡 Medium' :
+                         '🟢 Low'}
                       </button>
                     ))}
                   </div>
@@ -214,55 +192,94 @@ const ActiveTicketsPage: React.FC = () => {
               )}
             </div>
 
-            {/* Status Filter */}
+            {/* Status Filter - Backend status değerleri */}
             <div className="relative">
               <button 
                 onClick={() => {
                   setShowStatusFilter(!showStatusFilter);
                   setShowPriorityFilter(false);
                 }}
-                className={`h-10 px-4 rounded-lg border flex items-center gap-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-neutral-200 text-black'}`}
+                className={`h-10 px-4 rounded-lg border flex items-center gap-2 ${
+                  filterStatus !== 'all' 
+                    ? 'bg-cyan-100 border-cyan-300 text-cyan-700' 
+                    : isDarkMode 
+                      ? 'bg-gray-800 border-gray-700 text-gray-200' 
+                      : 'bg-white border-neutral-200 text-black'
+                }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                <span className="text-sm font-medium">Status</span>
+                <span className="text-sm font-medium">
+                  {filterStatus === 'all' ? 'Status' : filterStatus.replace('_', ' ')}
+                </span>
               </button>
               
               {showStatusFilter && (
                 <div className={`absolute right-0 top-12 w-48 rounded-lg border shadow-lg z-10 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                   <div className="p-2">
-                    {['all', 'new', 'in_progress', 'completed', 'blocked'].map((status) => (
+                    {[
+                      { value: 'all', label: '📋 All Status' },
+                      { value: 'OPEN', label: '🔵 Open' },
+                      { value: 'WAITING', label: '🟡 Waiting' },
+                      { value: 'IN_PROGRESS', label: '🔄 In Progress' },
+                      { value: 'RESOLVED', label: '✅ Resolved' },
+                      { value: 'CLOSED', label: '⚫ Closed' }
+                    ].map((status) => (
                       <button
-                        key={status}
+                        key={status.value}
                         onClick={() => {
-                          setFilterStatus(status);
+                          setFilterStatus(status.value);
                           setShowStatusFilter(false);
                         }}
                         className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${
-                          filterStatus === status
+                          filterStatus === status.value
                             ? 'bg-cyan-100 text-cyan-700'
                             : isDarkMode
                               ? 'text-gray-200 hover:bg-gray-700'
                               : 'text-gray-900 hover:bg-gray-100'
                         }`}
                       >
-                        {status === 'all' ? 'All Status' :
-                         status === 'open' ? 'Open' :
-                         status === 'in_progress' ? 'In Progress' :
-                         status === 'resolved' ? 'Resolved' :
-                         'Closed'}
+                        {status.label}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Clear Filters */}
+            {(filterPriority !== 'all' || filterStatus !== 'all' || searchQuery) && (
+              <button
+                onClick={() => {
+                  setFilterPriority('all');
+                  setFilterStatus('all');
+                  setSearchQuery('');
+                }}
+                className={`h-10 px-3 rounded-lg border flex items-center gap-1 text-sm ${
+                  isDarkMode 
+                    ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200' 
+                    : 'bg-white border-neutral-200 text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear
+              </button>
+            )}
           </div>
         </div>
 
         {/* Content Area */}
-        {filteredMyTickets.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading tickets...</p>
+            </div>
+          </div>
+        ) : filteredTickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <div className={`w-24 h-24 rounded-full ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} flex items-center justify-center mb-4`}>
               <svg className={`w-12 h-12 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,22 +287,26 @@ const ActiveTicketsPage: React.FC = () => {
               </svg>
             </div>
             <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              No Tickets Assigned
+              {tickets.length === 0 ? 'No Tickets Assigned' : 'No Matching Tickets'}
             </h3>
             <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-              You don't have any tickets assigned to you yet.
+              {tickets.length === 0 
+                ? "You don't have any tickets assigned to you yet."
+                : "Try adjusting your search or filter criteria."}
             </p>
           </div>
         ) : (
-          <TicketTable
-            tickets={filteredMyTickets}
-            loading={loading}
-            isDarkMode={isDarkMode}
-            onDelete={() => {}}
-            onUpdateStatus={handleUpdateStatus}
-            userRole="user"
-            canDelete={false}
-          />
+          <div className="px-8 py-6">
+            <TicketTable
+              tickets={filteredTickets}
+              loading={loading}
+              isDarkMode={isDarkMode}
+              onDelete={() => {}}
+              onUpdateStatus={handleUpdateStatus}
+              userRole="user"
+              canDelete={false}
+            />
+          </div>
         )}
       </div>
 

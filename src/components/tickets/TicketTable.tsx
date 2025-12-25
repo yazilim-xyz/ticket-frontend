@@ -119,7 +119,7 @@ const TicketTable: React.FC<TicketTableProps> = ({
   }
 
   return (
-    <div className={`rounded-lg border overflow-hidden ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+    <div className={`rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className={isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}>

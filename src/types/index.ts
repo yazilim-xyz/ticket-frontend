@@ -13,7 +13,7 @@ export interface User {
 
 // Ticket Types
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'CANCELLED';
+export type TicketStatus = 'OPEN' | 'WAITING' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 
 export interface Ticket {
   id: string;

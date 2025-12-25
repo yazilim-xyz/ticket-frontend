@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Sidebar from '../components/layouts/Sidebar';
 import { useTheme } from '../context/ThemeContext';
 import { useTickets } from '../hooks/useTickets';
@@ -7,7 +7,7 @@ import UpdateStatusModal from '../components/tickets/UpdateStatusModal';
 import UpdateAssignmentModal from '../components/modals/UpdateAssignmentModal';
 import DeleteConfirmationModal from '../components/modals/DeleteConfirmationModal';
 import { ticketService } from '../services/ticketService';
-import {TicketStatus, Ticket } from '@/types'
+import { TicketStatus, Ticket } from '../types';
 
 const AllTicketsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -27,9 +27,9 @@ const AllTicketsPage: React.FC = () => {
   // No userId - Admin sees all tickets
   const { tickets, loading, deleteTicket, refetch } = useTickets();
 
-  const handleDelete = async (ticketId: string) => {
-    // Find ticket and open confirmation modal
-    const ticket = tickets.find(t => t.id === ticketId);
+  // Delete handlers
+  const handleDelete = (ticketId: string | number) => {
+    const ticket = tickets.find(t => t.id === String(ticketId));
     if (ticket) {
       setTicketToDelete({
         id: ticket.id,
@@ -44,34 +44,27 @@ const AllTicketsPage: React.FC = () => {
 
     try {
       await deleteTicket(ticketToDelete.id);
+      setIsDeleteModalOpen(false);
       setTicketToDelete(null);
     } catch (error) {
       console.error('Failed to delete ticket:', error);
     }
   };
 
-  const handleUpdateStatus = (ticketId: string) => {
-    const ticket = tickets.find(t => t.id === ticketId);
+  // Status update handlers
+  const handleUpdateStatus = (ticketId: string | number) => {
+    const ticket = tickets.find(t => t.id === String(ticketId));
     if (ticket) {
       setSelectedTicket(ticket);
       setIsStatusModalOpen(true);
     }
   };
 
-  const handleUpdateAssignment = (ticketId: string) => {
-    const ticket = tickets.find(t => t.id === ticketId);
-    if (ticket) {
-      setSelectedTicket(ticket);
-      setIsAssignmentModalOpen(true);
-    }
-  };
-
   const handleStatusUpdate = async (ticketId: string, newStatus: string) => {
     try {
-      // Convert frontend status to backend enum
       const backendStatus = convertToBackendStatus(newStatus);
-      await ticketService.updateTicketStatus(parseInt(ticketId), backendStatus);
-      await refetch(); // Refresh ticket list
+      await ticketService.updateTicketStatus(ticketId, backendStatus);
+      await refetch();
       setIsStatusModalOpen(false);
       setSelectedTicket(null);
     } catch (error) {
@@ -80,10 +73,19 @@ const AllTicketsPage: React.FC = () => {
     }
   };
 
+  // Assignment update handlers
+  const handleUpdateAssignment = (ticketId: string | number) => {
+    const ticket = tickets.find(t => t.id === String(ticketId));
+    if (ticket) {
+      setSelectedTicket(ticket);
+      setIsAssignmentModalOpen(true);
+    }
+  };
+
   const handleAssignmentUpdate = async (ticketId: string, newAssigneeId: string) => {
     try {
-      await ticketService.assignTicket(parseInt(ticketId), parseInt(newAssigneeId));
-      await refetch();  // Refresh ticket list
+      await ticketService.assignTicket(ticketId, parseInt(newAssigneeId));
+      await refetch();
       setIsAssignmentModalOpen(false);
       setSelectedTicket(null);
     } catch (error) {
@@ -93,16 +95,16 @@ const AllTicketsPage: React.FC = () => {
   };
 
   // Convert frontend status to backend enum
+  // Backend TicketStatus: OPEN, WAITING, IN_PROGRESS, RESOLVED, CLOSED
   const convertToBackendStatus = (status: string): TicketStatus => {
     const statusMap: Record<string, TicketStatus> = {
       'new': 'OPEN',
       'open': 'OPEN',
+      'waiting': 'WAITING',
       'in progress': 'IN_PROGRESS',
       'in_progress': 'IN_PROGRESS',
-      'blocked': 'CANCELLED',
-      'cancelled': 'CANCELLED',
-      'completed': 'RESOLVED',
       'resolved': 'RESOLVED',
+      'completed': 'RESOLVED',
       'done': 'RESOLVED',
       'closed': 'CLOSED',
     };
@@ -111,30 +113,34 @@ const AllTicketsPage: React.FC = () => {
   };
 
   // Filter tickets
-  const filteredTickets = tickets.filter(ticket => {
-    // Search filter
-    const matchesSearch = 
-      ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.project.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredTickets = useMemo(() => {
+    return tickets.filter(ticket => {
+      // Search filter
+      const matchesSearch = 
+        ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        ticket.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (ticket.category || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Priority filter
-    const matchesPriority = 
-      filterPriority === 'all' || 
-      ticket.priority.toLowerCase() === filterPriority.toLowerCase();
+      // Priority filter
+      const matchesPriority = 
+        filterPriority === 'all' || 
+        ticket.priority.toLowerCase() === filterPriority.toLowerCase();
 
-    // Status filter
-    const matchesStatus = 
-      filterStatus === 'all' || 
-      ticket.status.toLowerCase().replace('_', ' ') === filterStatus.toLowerCase().replace('_', ' ');
+      // Status filter
+      const ticketStatus = ticket.status.toLowerCase().replace('_', ' ');
+      const filterStatusNormalized = filterStatus.toLowerCase().replace('_', ' ');
+      const matchesStatus = 
+        filterStatus === 'all' || 
+        ticketStatus === filterStatusNormalized;
 
-    return matchesSearch && matchesPriority && matchesStatus;
-  });
+      return matchesSearch && matchesPriority && matchesStatus;
+    });
+  }, [tickets, searchQuery, filterPriority, filterStatus]);
 
   return (
     <div className={`flex h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Sidebar */}
-      <Sidebar isDarkMode = {isDarkMode} />
+      <Sidebar isDarkMode={isDarkMode} />
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
@@ -175,9 +181,14 @@ const AllTicketsPage: React.FC = () => {
 
           {/* Page Title */}
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
-              All Tickets
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9">
+                All Tickets
+              </h1>
+              <span className={`text-sm px-2 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                {filteredTickets.length}
+              </span>
+            </div>
           </div>
 
           {/* Search & Filter Bar */}
@@ -203,12 +214,20 @@ const AllTicketsPage: React.FC = () => {
                   setShowPriorityFilter(!showPriorityFilter);
                   setShowStatusFilter(false);
                 }}
-                className={`h-10 px-4 rounded-lg border flex items-center gap-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-neutral-200 text-black'}`}
+                className={`h-10 px-4 rounded-lg border flex items-center gap-2 ${
+                  filterPriority !== 'all' 
+                    ? 'bg-cyan-100 border-cyan-300 text-cyan-700' 
+                    : isDarkMode 
+                      ? 'bg-gray-800 border-gray-700 text-gray-200' 
+                      : 'bg-white border-neutral-200 text-black'
+                }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                <span className="text-sm font-medium">Priority</span>
+                <span className="text-sm font-medium">
+                  {filterPriority === 'all' ? 'Priority' : filterPriority.charAt(0).toUpperCase() + filterPriority.slice(1)}
+                </span>
               </button>
               
               {showPriorityFilter && (
@@ -231,9 +250,9 @@ const AllTicketsPage: React.FC = () => {
                       >
                         {priority === 'all' ? '🗃️ All Priorities' : 
                          priority === 'critical' ? '🟣 Critical' :
-                         priority === 'high' ? '🔴 High Priority' :
-                         priority === 'medium' ? '🟡 Medium Priority' :
-                         '🟢 Low Priority'}
+                         priority === 'high' ? '🔴 High' :
+                         priority === 'medium' ? '🟡 Medium' :
+                         '🟢 Low'}
                       </button>
                     ))}
                   </div>
@@ -248,18 +267,26 @@ const AllTicketsPage: React.FC = () => {
                   setShowStatusFilter(!showStatusFilter);
                   setShowPriorityFilter(false);
                 }}
-                className={`h-10 px-4 rounded-lg border flex items-center gap-2 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-neutral-200 text-black'}`}
+                className={`h-10 px-4 rounded-lg border flex items-center gap-2 ${
+                  filterStatus !== 'all' 
+                    ? 'bg-cyan-100 border-cyan-300 text-cyan-700' 
+                    : isDarkMode 
+                      ? 'bg-gray-800 border-gray-700 text-gray-200' 
+                      : 'bg-white border-neutral-200 text-black'
+                }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                <span className="text-sm font-medium">Status</span>
+                <span className="text-sm font-medium">
+                  {filterStatus === 'all' ? 'Status' : filterStatus.replace('_', ' ')}
+                </span>
               </button>
               
               {showStatusFilter && (
                 <div className={`absolute right-0 top-12 w-48 rounded-lg border shadow-lg z-10 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
                   <div className="p-2">
-                    {['all', 'new', 'in_progress', 'completed', 'blocked'].map((status) => (
+                    {['all', 'open', 'waiting', 'in_progress', 'resolved', 'closed'].map((status) => (
                       <button
                         key={status}
                         onClick={() => {
@@ -274,32 +301,63 @@ const AllTicketsPage: React.FC = () => {
                               : 'text-gray-900 hover:bg-gray-100'
                         }`}
                       >
-                        {status === 'all' ? 'All Status' :
-                         status === 'new' ? 'New' :
-                         status === 'in_progress' ? 'In Progress' :
-                         status === 'completed' ? 'Completed' :
-                         'Blocked'}
+                        {status === 'all' ? '📋 All Status' :
+                         status === 'open' ? '🔵 Open' :
+                         status === 'waiting' ? '🟡 Waiting' :
+                         status === 'in_progress' ? '🟠 In Progress' :
+                         status === 'resolved' ? '🟢 Resolved' :
+                         '⚫ Closed'}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Clear Filters */}
+            {(filterPriority !== 'all' || filterStatus !== 'all' || searchQuery) && (
+              <button
+                onClick={() => {
+                  setFilterPriority('all');
+                  setFilterStatus('all');
+                  setSearchQuery('');
+                }}
+                className={`h-10 px-3 rounded-lg border flex items-center gap-1 text-sm ${
+                  isDarkMode 
+                    ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200' 
+                    : 'bg-white border-neutral-200 text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear
+              </button>
+            )}
           </div>
         </div>
         
         {/* Content Area */}
         <div className="px-8 py-6">
-          <TicketTable
-            tickets={filteredTickets}
-            loading={loading}
-            isDarkMode={isDarkMode}
-            onDelete={handleDelete}
-            onUpdateStatus={handleUpdateStatus}
-            onUpdateAssignment={handleUpdateAssignment}
-            userRole="admin"
-            canDelete={true}
-          />
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Loading tickets...</p>
+              </div>
+            </div>
+          ) : (
+            <TicketTable
+              tickets={filteredTickets}
+              loading={loading}
+              isDarkMode={isDarkMode}
+              onDelete={handleDelete}
+              onUpdateStatus={handleUpdateStatus}
+              onUpdateAssignment={handleUpdateAssignment}
+              userRole="admin"
+              canDelete={true}
+            />
+          )}
         </div>
       </div>
       

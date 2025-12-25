@@ -85,7 +85,9 @@ const RecentTicketsWidget: React.FC<RecentTicketsWidgetProps> = ({
 
   // Navigate to ticket detail
   const handleTicketClick = (ticketId: string) => {
-    navigate(`/tickets/${ticketId}`);
+    // ticketId format: "TCK-123" -> extract "123"
+    const numericId = ticketId.replace('TCK-', '');
+    navigate(`/ticket/${numericId}`);
   };
 
   // Loading state
@@ -150,7 +152,7 @@ const RecentTicketsWidget: React.FC<RecentTicketsWidgetProps> = ({
             return (
               <div
                 key={ticket.id}
-                onClick={() => handleTicketClick(ticket.id)}
+                onClick={() => handleTicketClick(ticket.ticketId)}
                 className={`
                   p-4 rounded-lg border cursor-pointer transition-all
                   ${isDarkMode 
