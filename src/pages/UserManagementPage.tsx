@@ -38,9 +38,12 @@ const UserManagementPage: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // TOAST HELPER
-   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info') => {
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info') => {
     const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
+    setToasts([]);
+    setTimeout(() => {
+      setToasts([{ id, message, type }]);
+    }, 50);
   };
 
   const removeToast = (id: number) => {
@@ -66,7 +69,10 @@ const UserManagementPage: React.FC = () => {
   // EVENT HANDLERS
   const handleToggleStatus = async (userId: string) => {
     try {
-      const updatedUser = await adminService.toggleUserStatus(userId);
+      const current = users.find(u => u.id === userId);
+      const next = current?.status !== 'active'; // ON mu olacak?
+      const updatedUser = await adminService.setUserApprovalStatus(userId, !!next);
+
       setUsers(users.map(u => u.id === userId ? updatedUser : u));
       showToast(
         `User ${updatedUser.status === 'active' ? 'approved' : 'set to waitlist'} successfully`,
@@ -426,7 +432,7 @@ const UserManagementPage: React.FC = () => {
                                             Role
                                         </th>
                                         <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                            Approval Status
+                                            Access Status
                                         </th>
                                         <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                             Registration Date
@@ -446,38 +452,41 @@ const UserManagementPage: React.FC = () => {
                                                 {user.email}
                                             </td>
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          <span className={`px-2 py-1 rounded-md text-xs ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                            {user.department}
-                          </span>
+                                              <span className={`px-2 py-1 rounded-md text-xs ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                                {user.department}
+                                              </span>
                                             </td>
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                                 {user.position}
                                             </td>
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
-                          <span className={`px-2 py-1 rounded-md text-xs font-medium border ${getRoleBadgeClass(user.role)}`}>
-                            {user.role.toUpperCase()}
-                          </span>
+                                              <span className={`px-2 py-1 rounded-md text-xs font-medium border ${getRoleBadgeClass(user.role)}`}>
+                                                {user.role.toUpperCase()}
+                                            </span>
                                             </td>
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
                                                 <button
                                                     onClick={() => handleToggleStatus(user.id)}
-                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 ${
                                                         user.status === 'active'
                                                             ? 'bg-teal-600'
                                                             : isDarkMode ? 'bg-gray-600' : 'bg-gray-300'
                                                     }`}
                                                     title={user.status === 'active' ? 'Approved - Click to set waitlisted' : 'Waitlisted - Click to approve'}
                                                 >
-                            <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                    user.status === 'active' ? 'translate-x-6' : 'translate-x-1'
-                                }`}
-                            />
+                                                  <span
+                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                    user.status === 'active' ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                              />
                                                 </button>
                                             </td>
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                              <div className="flex items-center justify-center">
                                                 {user.registrationDate}
+                                              </div>
                                             </td>
+
                                             <td className={`px-6 py-4 whitespace-nowrap text-sm`}>
                                                 <UserActionsDropdown
                                                     userId={user.id}
@@ -670,6 +679,7 @@ const UserManagementPage: React.FC = () => {
             message={toast.message}
             type={toast.type}
             onClose={() => removeToast(toast.id)}
+            duration={5000}
           />
         ))}
       </div>
