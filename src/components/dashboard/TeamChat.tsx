@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TeamChatMessage } from '../../types';
 import { useNavigate } from 'react-router-dom';
+import { chatApi, ChatUser } from '../../services/chatApi';
 
 interface TeamChatProps {
   isDarkMode?: boolean;
@@ -19,9 +20,28 @@ const TeamChat: React.FC<TeamChatProps> = ({
 }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [chatUsers, setChatUsers] = useState<ChatUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Fetch users for chat list
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setUsersLoading(true);
+        const users = await chatApi.getAllUsers();
+        setChatUsers(users);
+      } catch (error) {
+        console.error('Failed to fetch chat users:', error);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   // Auto scroll to bottom when new message arrives
   useEffect(() => {
@@ -32,11 +52,10 @@ const TeamChat: React.FC<TeamChatProps> = ({
     if (!inputMessage.trim() || !onSendMessage) return;
 
     try {
-      // Recipient ID - gerçek uygulamada seçili kullanıcıdan gelecek
-      const recipientId = 'user_456'; // Ezgi Yücel
+      const recipientId = 'user_456';
       await onSendMessage(recipientId, inputMessage);
       setInputMessage('');
-      setAttachedFiles([]); // Clear attached files after sending
+      setAttachedFiles([]);
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -78,6 +97,23 @@ const TeamChat: React.FC<TeamChatProps> = ({
     navigate('/chat');
   };
 
+  // Navigate to Chat Page with specific user
+  const handleUserClick = (userId: number) => {
+    navigate(`/chat?userId=${userId}`);
+  };
+
+  // Get initials from name
+  const getInitials = (name: string) => {
+    if (!name) return "?";
+    const letters = name
+      .split(" ")
+      .filter(Boolean)
+      .map(word => word[0])
+      .slice(0, 2)
+      .join("");
+    return letters.toUpperCase();
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -93,11 +129,6 @@ const TeamChat: React.FC<TeamChatProps> = ({
     );
   }
 
-  // Get current chat user info (first message sender)
-  const chatUser = messages.find(m => !m.isOwn);
-  const userAvatar = chatUser?.senderAvatar || 'EY';
-  const userName = chatUser?.senderName || 'Ezgi Yücel';
-
   return (
     <div className={`
       rounded-lg border h-[550px] flex flex-col
@@ -110,159 +141,97 @@ const TeamChat: React.FC<TeamChatProps> = ({
             Team Chat
           </h3>
           <span className={`text-xs font-medium ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-            3 online
+            {chatUsers.length} users
           </span>
         </div>
         
-         {/* Three dots menu - Navigate to Chat Page */}
+        {/* View All - Navigate to Chat Page */}
         <button 
           onClick={handleNavigateToChat}
-          className={`${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-700'} transition-colors`}
+          className={`text-sm font-medium ${isDarkMode ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'} transition-colors`}
         >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-          </svg>
+          View All →
         </button>
       </div>
 
-      {/* User Info */}
-      <div className={`px-6 py-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex items-center gap-3 flex-shrink-0`}>
-        <div className="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white text-sm font-semibold">
-          {userAvatar}
-        </div>
-        <div className="flex-1">
-          <p className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            {userName}
-          </p>
-          <p className={`text-xs ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-            Online - Last seen, 2:02pm
-          </p>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-        {messages.length === 0 ? (
+      {/* User List */}
+      <div className="flex-1 overflow-y-auto">
+        {usersLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600"></div>
+          </div>
+        ) : chatUsers.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-              No messages yet
+              No users available
             </p>
           </div>
         ) : (
-          <>
-            {messages.map((message) => (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {chatUsers.slice(0, 8).map((user) => (
               <div
-                key={message.id}
-                className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
+                key={user.id}
+                onClick={() => handleUserClick(user.id)}
+                className={`
+                  flex items-center gap-3 px-6 py-3 cursor-pointer transition-colors
+                  ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}
+                `}
               >
-                <div
-                  className={`max-w-[70%] px-4 py-2 rounded-2xl ${
-                    message.isOwn
-                      ? 'bg-cyan-500 text-white rounded-br-none'
-                      : isDarkMode
-                      ? 'bg-gray-700 text-gray-100 rounded-bl-none'
-                      : 'bg-gray-100 text-gray-900 rounded-bl-none'
-                  }`}
-                >
-                  <p className="text-sm">{message.text}</p>
+                {/* Avatar */}
+                <div className={`
+                  w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold
+                  ${isDarkMode ? 'bg-cyan-600' : 'bg-cyan-700'}
+                `}>
+                  {getInitials(user.name)}
                 </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </div>
 
-      {/* Attached Files Preview */}
-      {attachedFiles.length > 0 && (
-        <div className={`px-6 py-2 border-t ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex-shrink-0`}>
-          <div className="flex flex-wrap gap-2">
-            {attachedFiles.map((file, index) => (
-              <div
-                key={index}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${
-                  isDarkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                </svg>
-                <span className="max-w-[100px] truncate">{file.name}</span>
-                <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                  ({formatFileSize(file.size)})
-                </span>
-                <button
-                  onClick={() => handleRemoveFile(index)}
-                  className={`ml-1 ${isDarkMode ? 'hover:text-red-400' : 'hover:text-red-600'}`}
+                {/* User Info */}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {user.name}
+                  </p>
+                  {user.email && (
+                    <p className={`text-xs truncate ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {user.email}
+                    </p>
+                  )}
+                </div>
+
+                {/* Last Message */}
+                {user.lastMessage && (
+                  <p className={`text-xs truncate max-w-[100px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {user.lastMessage}
+                  </p>
+                )}
+
+                {/* Arrow Icon */}
+                <svg 
+                  className={`w-4 h-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Input Area */}
-      <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex items-center gap-3 flex-shrink-0`}>
-        {/* Attachment Button */}
-        <button 
-          onClick={handleAttachmentClick}
-          className={`p-2 rounded-lg transition-colors ${
-            isDarkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'
-          }`}
-          disabled={sending}
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-          </svg>
-        </button>
-
-        {/* Hidden File Input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-
-        {/* Input */}
-        <input
-          type="text"
-          value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type your message here..."
-          disabled={sending}
-          className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-            isDarkMode
-              ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-500'
-              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-          } ${sending ? 'opacity-50 cursor-not-allowed' : ''}`}
-        />
-
-        {/* Send Button */}
+      {/* Footer - Quick Action */}
+      <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-zinc-200'} flex-shrink-0`}>
         <button
-          onClick={handleSendMessage}
-          disabled={!inputMessage.trim() || sending}
-          className={`p-2 rounded-lg transition-colors ${
-            inputMessage.trim() && !sending
-              ? 'bg-cyan-600 text-white hover:bg-cyan-700'
-              : isDarkMode
-              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
+          onClick={handleNavigateToChat}
+          className={`
+            w-full py-2.5 rounded-lg text-sm font-medium transition-colors
+            ${isDarkMode 
+              ? 'bg-cyan-600 hover:bg-cyan-700 text-white' 
+              : 'bg-cyan-600 hover:bg-cyan-700 text-white'
+            }
+          `}
         >
-          {sending ? (
-            <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-          ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          )}
+          Open Full Chat
         </button>
       </div>
     </div>

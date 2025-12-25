@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useChat } from "../hooks/useChat";
 import { formatDate, formatMessageTime, ChatUser } from "../services/chatApi";
 import Sidebar from "../components/layouts/Sidebar";
@@ -6,6 +7,7 @@ import { useTheme } from "../context/ThemeContext";
 
 const ChatPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
+  const [searchParams] = useSearchParams();
 
   const {
     messages,
@@ -24,18 +26,35 @@ const ChatPage: React.FC = () => {
   const [input, setInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUser[]>([]);
+  const [initialUserSelected, setInitialUserSelected] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
-  
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // Handle URL parameter - auto select user from dashboard
+  useEffect(() => {
+    const userIdParam = searchParams.get("userId");
+    
+    if (userIdParam && users.length > 0 && !initialUserSelected) {
+      const userId = parseInt(userIdParam, 10);
+      const userToSelect = users.find(u => u.id === userId);
+      
+      if (userToSelect) {
+        console.log("🎯 Auto-selecting user from URL:", userToSelect.name);
+        selectUser(userToSelect);
+        setInitialUserSelected(true);
+      }
+    }
+  }, [searchParams, users, selectUser, initialUserSelected]);
+
+  // Filter and sort users
   useEffect(() => {
     let result = [...users];
     
@@ -48,14 +67,11 @@ const ChatPage: React.FC = () => {
     }
     
     result.sort((a, b) => {
-      // Eğer her ikisinin de lastMessageDate'i varsa, tarihe göre sırala
       if (a.lastMessageDate && b.lastMessageDate) {
         return new Date(b.lastMessageDate).getTime() - new Date(a.lastMessageDate).getTime();
       }
-      // lastMessageDate olanı öne al
       if (a.lastMessageDate && !b.lastMessageDate) return -1;
       if (!a.lastMessageDate && b.lastMessageDate) return 1;
-      // Her ikisinde de yoksa isme göre sırala
       return a.name.localeCompare(b.name);
     });
     
@@ -69,18 +85,15 @@ const ChatPage: React.FC = () => {
   };
 
   const getInitials = (name: string) => {
-  if (!name) return "?";
-
-  const letters = name
-    .split(" ")
-    .filter(Boolean)
-    .map(word => word[0])
-    .slice(0, 2)
-    .join("");
-
-  return letters.toUpperCase();
-};
-
+    if (!name) return "?";
+    const letters = name
+      .split(" ")
+      .filter(Boolean)
+      .map(word => word[0])
+      .slice(0, 2)
+      .join("");
+    return letters.toUpperCase();
+  };
 
   const ThemeToggle = () => (
     <div className="flex items-center gap-2">
@@ -139,7 +152,7 @@ const ChatPage: React.FC = () => {
   const ConnectionStatus = () => (
     <div className={`flex items-center gap-1.5 text-xs ${isConnected ? "text-green-500" : "text-red-500"}`}>
       <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
-      {isConnected ? "Bağlı" : "Bağlantı kesildi"}
+      {isConnected ? "Connected" : "Disconnected"}
     </div>
   );
 
@@ -166,9 +179,13 @@ const ChatPage: React.FC = () => {
       <ErrorAlert />
       <Sidebar isDarkMode={isDarkMode} />
 
+      {/* User List Sidebar */}
       <div className={`w-80 border-r ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} flex flex-col`}>
         <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <h2 className={`text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3"}`}>Messages</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className={`text-cyan-800 text-2xl font-semibold font-['Inter']`}>Messages</h2>
+            <ConnectionStatus />
+          </div>
           <div className="relative">
             <svg
               className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
@@ -194,12 +211,13 @@ const ChatPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-y-auto flex-1">
+        {/* User List */}
+        <div className="flex-1 overflow-y-auto">
           {isLoadingUsers ? (
             <LoadingSpinner />
           ) : filteredUsers.length === 0 ? (
             <div className={`text-center py-8 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
-              {searchQuery ? "User not found" : "There are no users yet"}
+              No users found
             </div>
           ) : (
             filteredUsers.map((u) => (
@@ -246,9 +264,11 @@ const ChatPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Chat Area */}
       <div className={`flex-1 flex flex-col ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
         {selectedUser ? (
           <>
+            {/* Chat Header */}
             <div
               className={`px-6 py-4 border-b ${
                 isDarkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"

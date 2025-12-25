@@ -162,7 +162,7 @@ class TicketService {
   async getTickets(userId?: string): Promise<Ticket[]> {
     // Role'e göre endpoint seç
     const endpoint = isAdmin() 
-      ? `${API_BASE_URL}/api/admin/tickets`
+      ? `${API_BASE_URL}/api/admin/tickets?page=0&size=1000`
       : `${API_BASE_URL}/api/tickets`;
     
     const url = userId

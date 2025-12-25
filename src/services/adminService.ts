@@ -220,6 +220,26 @@ export const adminService = {
   },
 
   /**
+   * Get Raw User by ID (Backend formatında - internal use)
+   * GET /api/admin/users/{id}
+   */
+  getRawUserById: async (userId: string): Promise<AdminUserBackendResponse> => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/users/${userId}`,
+      {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user');
+    }
+
+    return await response.json();
+  },
+
+  /**
    * Create New User
    * POST /api/admin/users
    */
@@ -316,42 +336,79 @@ export const adminService = {
   },
 
   /**
-   * Toggle User Status (Active/Disabled)
-   * PATCH /api/admin/users/{id}/active
+   * Toggle User Status (Active/Disabled + Approval)
+   * 
+   * FIX: Artık hem /active hem /approval endpoint'lerini çağırıyor
+   * Register olan kullanıcılar için approved=false geliyor, 
+   * bu yüzden onay verirken her iki alanı da güncellememiz gerekiyor.
    */
   toggleUserStatus: async (userId: string): Promise<AdminUser> => {
-    // 1. Mevcut kullanıcıyı al
-    const currentUser = await adminService.getUserById(userId);
+    // 1. Mevcut kullanıcıyı backend formatında al (raw data)
+    const currentUser = await adminService.getRawUserById(userId);
     
-    // 2. Status'ü tersine çevir
-    const newActiveStatus = currentUser.status !== 'active';
+    console.log('🔍 Current user state:', {
+      id: currentUser.id,
+      active: currentUser.active,
+      approved: currentUser.approved
+    });
     
-    // 3. Status değiştir - Swagger'a göre /api/admin/users/{id}/active
-    const response = await fetch(
+    // 2. Yeni durumu belirle
+    // Eğer kullanıcı tam aktif değilse (active=false VEYA approved=false), 
+    // her ikisini de true yap
+    // Eğer tam aktifse (active=true VE approved=true), her ikisini de false yap
+    const isCurrentlyFullyActive = currentUser.active && currentUser.approved;
+    const newStatus = !isCurrentlyFullyActive;
+    
+    console.log('🔄 Changing status to:', { active: newStatus, approved: newStatus });
+
+    // 3. Önce approval durumunu güncelle
+    const approvalResponse = await fetch(
+      `${API_BASE_URL}/api/admin/users/${userId}/approval`,
+      {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ approved: newStatus }),
+      }
+    );
+
+    if (!approvalResponse.ok) {
+      const errorText = await approvalResponse.text();
+      console.error('❌ Approval update failed:', errorText);
+      throw new Error(errorText || `Failed to update approval: HTTP ${approvalResponse.status}`);
+    }
+    console.log('✅ Approval updated successfully');
+
+    // 4. Sonra active durumunu güncelle
+    const activeResponse = await fetch(
       `${API_BASE_URL}/api/admin/users/${userId}/active`,
       {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ active: newActiveStatus }),
+        body: JSON.stringify({ active: newStatus }),
       }
     );
 
-    // 4. Hata kontrolü
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `Failed to change status: HTTP ${response.status}`);
+    if (!activeResponse.ok) {
+      const errorText = await activeResponse.text();
+      console.error('❌ Active update failed:', errorText);
+      throw new Error(errorText || `Failed to update active status: HTTP ${activeResponse.status}`);
     }
+    console.log('✅ Active status updated successfully');
 
-    // 5. Backend void döndürüyor, user'ı tekrar fetch et
-    return await adminService.getUserById(userId);
+    // 5. Güncel kullanıcıyı döndür
+    const updatedUser = await adminService.getUserById(userId);
+    console.log('✅ Final user state:', updatedUser);
+    
+    return updatedUser;
   },
 
   /**
-   * Approve/Reject User
+   * Approve/Reject User (Sadece approval için)
    * PATCH /api/admin/users/{id}/approval
    */
   approveUser: async (userId: string, approved: boolean): Promise<AdminUser> => {
-    // Swagger'a göre /api/admin/users/{id}/approval
+    console.log(`🔄 ${approved ? 'Approving' : 'Rejecting'} user:`, userId);
+    
     const response = await fetch(
       `${API_BASE_URL}/api/admin/users/${userId}/approval`,
       {
@@ -366,6 +423,35 @@ export const adminService = {
       throw new Error(errorText || `Failed to ${approved ? 'approve' : 'reject'} user: HTTP ${response.status}`);
     }
 
+    console.log('✅ Approval status updated');
+    
+    // Backend void döndürüyor, user'ı tekrar fetch et
+    return await adminService.getUserById(userId);
+  },
+
+  /**
+   * Set User Active Status (Sadece active için)
+   * PATCH /api/admin/users/{id}/active
+   */
+  setUserActive: async (userId: string, active: boolean): Promise<AdminUser> => {
+    console.log(`🔄 Setting user active=${active}:`, userId);
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/admin/users/${userId}/active`,
+      {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ active }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `Failed to update active status: HTTP ${response.status}`);
+    }
+
+    console.log('✅ Active status updated');
+    
     // Backend void döndürüyor, user'ı tekrar fetch et
     return await adminService.getUserById(userId);
   },

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { settingsApi, UpdateProfileDTO, ChangePasswordDTO } from "../services/settingsApi";
 import { 
-  Camera, Check, AlertCircle, Eye, EyeOff, 
+  Check, AlertCircle, Eye, EyeOff, 
   User, Lock, Shield, Loader2, X
 } from "lucide-react";
 import Sidebar from "../components/layouts/Sidebar";
@@ -15,16 +15,13 @@ const SettingsPage: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'security'>('profile');
   const [saving, setSaving] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form states - Profile (Backend name/surname kullanıyor)
+  // Form states - Profile (Backend Name/Surname kullanıyor - büyük harfle)
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [profileImage, setProfileImage] = useState<string>("");
-  const [username, setUsername] = useState("");
+  const [role, setRole] = useState("");
 
   // Form states - Password
   const [currentPassword, setCurrentPassword] = useState("");
@@ -44,9 +41,8 @@ const SettingsPage: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    // Calculate password strength
     let strength = 0;
-    if (newPassword.length >= 8) strength++;  // Backend min 8 karakter istiyor
+    if (newPassword.length >= 8) strength++;
     if (newPassword.length >= 12) strength++;
     if (/[A-Z]/.test(newPassword)) strength++;
     if (/[0-9]/.test(newPassword)) strength++;
@@ -57,17 +53,15 @@ const SettingsPage: React.FC = () => {
   const loadUserData = () => {
     setLoading(true);
     try {
-      // AuthContext'ten veya localStorage'dan kullanıcı bilgilerini al
       const currentUser = user || settingsApi.getCurrentUser();
       
       if (currentUser) {
-        // Backend name/surname kullanıyor
-        setName((currentUser as any).name || (currentUser as any).Name || "");
-        setSurname((currentUser as any).surname || (currentUser as any).Surname || "");
+        // Backend Name/Surname büyük harfle gönderiyor
+        setName((currentUser as any).Name || (currentUser as any).name || "");
+        setSurname((currentUser as any).Surname || (currentUser as any).surname || "");
         setEmail(currentUser.email || "");
         setPhoneNumber((currentUser as any).phoneNumber || "");
-        setProfileImage((currentUser as any).profileImage || "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200");
-        setUsername(currentUser.email?.split('@')[0] || "user");
+        setRole((currentUser as any).role || "USER");
       }
     } catch (error) {
       console.error("Settings load error:", error);
@@ -76,13 +70,27 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  // Get initials from name and surname
+  const getInitials = () => {
+    const firstInitial = name ? name.charAt(0).toUpperCase() : "";
+    const lastInitial = surname ? surname.charAt(0).toUpperCase() : "";
+    return firstInitial + lastInitial || "U";
+  };
+
+  // Get full name
+  const getFullName = () => {
+    if (name && surname) return `${name} ${surname}`;
+    if (name) return name;
+    if (surname) return surname;
+    return "User";
+  };
+
   const showMessage = (type: 'success' | 'error', text: string) => {
     setSaveMessage({ type, text });
     setTimeout(() => setSaveMessage(null), 4000);
   };
 
   const handleSaveDetails = async () => {
-    // Validation
     if (!name.trim() || !surname.trim() || !email.trim()) {
       showMessage('error', 'Name, surname and email are required');
       return;
@@ -106,7 +114,6 @@ const SettingsPage: React.FC = () => {
 
     setSaving(true);
     try {
-      // Backend DTO'ya uyumlu data
       const updateData: UpdateProfileDTO = {
         name: name.trim(),
         surname: surname.trim(),
@@ -116,12 +123,11 @@ const SettingsPage: React.FC = () => {
 
       const response = await settingsApi.updateProfile(updateData);
       
-      // AuthContext'i güncelle
+      // AuthContext'i güncelle (büyük harfli field'lar)
       updateUser({
-        name: response.name,
-        surname: response.surname,
+        Name: response.name,
+        Surname: response.surname,
         email: response.email,
-        phoneNumber: response.phoneNumber
       } as any);
 
       // localStorage'ı da güncelle
@@ -142,7 +148,6 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleChangePassword = async () => {
-    // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       showMessage('error', 'Please fill all password fields');
       return;
@@ -160,18 +165,16 @@ const SettingsPage: React.FC = () => {
 
     setSaving(true);
     try {
-      // Backend DTO'ya uyumlu data - confirmPassword dahil!
       const passwordData: ChangePasswordDTO = {
         oldPassword: currentPassword,
         newPassword: newPassword,
-        confirmPassword: confirmPassword  // Backend bu alanı istiyor!
+        confirmPassword: confirmPassword
       };
 
       await settingsApi.changePassword(passwordData);
       
       showMessage('success', 'Password changed successfully!');
       
-      // Clear form
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -180,23 +183,6 @@ const SettingsPage: React.FC = () => {
       showMessage('error', errorMessage);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingImage(true);
-    try {
-      // Şimdilik sadece lokal preview - backend'de profil resmi endpoint'i eklenince güncellenecek
-      const imageUrl = URL.createObjectURL(file);
-      setProfileImage(imageUrl);
-      showMessage('success', 'Profile photo updated!');
-    } catch (error) {
-      showMessage('error', 'Failed to upload image');
-    } finally {
-      setUploadingImage(false);
     }
   };
 
@@ -229,13 +215,17 @@ const SettingsPage: React.FC = () => {
     <div className={`min-h-screen flex ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       <Sidebar isDarkMode={isDarkMode} />
       
+      {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-4xl mx-auto p-6 lg:p-8">
-          {/* Header with Theme Toggle */}
-          <div className="mb-8 relative">
-            {/* Dark/Light Mode Toggle - Sağ Üst */}
-            <div className="absolute top-0 right-0 flex items-center gap-2">
-              {/* Sun Icon with Tick */}
+        {/* Header */}
+        <div className={`px-8 py-6 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center justify-between">
+            <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9">
+              Settings
+            </h1>
+
+            {/* Theme Toggle */}
+            <div className="flex items-center gap-2">
               <div className="relative">
                 <svg
                   className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-gray-600' : 'text-yellow-500'}`}
@@ -250,20 +240,13 @@ const SettingsPage: React.FC = () => {
                 </svg>
                 {!isDarkMode && (
                   <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-2.5 h-2.5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      strokeWidth={3}
-                    >
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 )}
               </div>
 
-              {/* Switch Toggle */}
               <button
                 onClick={toggleTheme}
                 className="relative w-14 h-7 rounded-full transition-colors duration-300 bg-cyan-500"
@@ -276,7 +259,6 @@ const SettingsPage: React.FC = () => {
                 />
               </button>
 
-              {/* Moon Icon with Tick */}
               <div className="relative">
                 <svg
                   className={`w-5 h-5 transition-colors ${isDarkMode ? 'text-blue-400' : 'text-gray-800'}`}
@@ -287,150 +269,117 @@ const SettingsPage: React.FC = () => {
                 </svg>
                 {isDarkMode && (
                   <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-2.5 h-2.5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      strokeWidth={3}
-                    >
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
                 )}
               </div>
             </div>
-
-            <h1 className={`text-3xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-              Settings
-            </h1>
-            <p className={`mt-2 ${isDarkMode ? "text-gray-400" : "text-gray-600"}`}>
-              Manage your account settings and preferences
-            </p>
           </div>
+        </div>
 
-          {/* Toast Notification */}
-          {saveMessage && (
-            <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-fadeIn ${
-              saveMessage.type === 'success' 
-                ? 'bg-green-500 text-white' 
-                : 'bg-red-500 text-white'
-            }`}>
-              {saveMessage.type === 'success' ? (
-                <Check className="w-5 h-5" />
-              ) : (
-                <AlertCircle className="w-5 h-5" />
-              )}
-              <span className="font-medium">{saveMessage.text}</span>
-              <button 
-                onClick={() => setSaveMessage(null)}
-                className="ml-2 hover:opacity-80"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6">
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
-                activeTab === 'profile'
-                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/25'
-                  : isDarkMode 
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
+        {/* Toast Notification */}
+        {saveMessage && (
+          <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg animate-fadeIn ${
+            saveMessage.type === 'success' 
+              ? 'bg-green-500 text-white' 
+              : 'bg-red-500 text-white'
+          }`}>
+            {saveMessage.type === 'success' ? (
+              <Check className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+            <span className="font-medium">{saveMessage.text}</span>
+            <button 
+              onClick={() => setSaveMessage(null)}
+              className="ml-2 hover:opacity-80"
             >
-              <User className="w-4 h-4" />
-              Profile
-            </button>
-            <button
-              onClick={() => setActiveTab('security')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${
-                activeTab === 'security'
-                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-500/25'
-                  : isDarkMode 
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' 
-                    : 'bg-white text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <Shield className="w-4 h-4" />
-              Security
+              <X className="w-4 h-4" />
             </button>
           </div>
+        )}
 
-          {/* Content */}
-          <div className="space-y-6">
-            {/* Profile Tab */}
-            {activeTab === 'profile' && (
-              <div className="space-y-6 animate-fadeIn">
-                {/* Profile Photo Section */}
-                <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm`}>
-                  <h2 className={`text-xl font-bold mb-6 ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-                    Profile Photo
-                  </h2>
-                  <div className="flex items-center gap-6">
-                    <div className="relative">
-                      <img
-                        src={profileImage}
-                        alt="Profile"
-                        className="w-24 h-24 rounded-2xl object-cover border-4 border-teal-500/20"
-                      />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage}
-                        className="absolute -bottom-2 -right-2 bg-teal-600 hover:bg-teal-700 text-white p-2 rounded-xl shadow-lg transition-all"
-                      >
-                        {uploadingImage ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Camera className="w-4 h-4" />
-                        )}
-                      </button>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </div>
-                    <div>
-                      <h3 className={`font-semibold text-lg ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-                        {name && surname ? `${name} ${surname}` : "User Name"}
-                      </h3>
-                      <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                        @{username}
-                      </p>
-                      <p className={`text-sm ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
-                        {email}
-                      </p>
-                      <p className={`text-xs mt-2 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
-                        JPG, PNG or GIF. Max 2MB.
-                      </p>
-                    </div>
-                  </div>
+        {/* Content */}
+        <div className="p-8">
+          {/* Single Card Container */}
+          <div className={`rounded-2xl border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} overflow-hidden`}>
+            
+            {/* Profile Header */}
+            <div className={`px-8 py-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="flex items-center gap-5">
+                {/* Avatar with Initials */}
+                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-bold text-white bg-gradient-to-br from-teal-500 to-cyan-600 shadow-lg`}>
+                  {getInitials()}
                 </div>
+                
+                {/* User Info */}
+                <div className="flex-1">
+                  <h2 className={`text-xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                    {getFullName()}
+                  </h2>
+                  <p className={`text-sm mt-0.5 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    {email}
+                  </p>
+                  <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium ${
+                    role === 'ADMIN' 
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                      : 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
+                  }`}>
+                    {role}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-                {/* Personal Info Section */}
-                <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm`}>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
-                      <User className="w-5 h-5 text-teal-500" />
-                    </div>
-                    <div>
-                      <h2 className={`text-xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-                        Personal Information
-                      </h2>
-                      <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                        Update your basic profile information
-                      </p>
-                    </div>
+            {/* Tabs */}
+            <div className={`px-8 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
+                    activeTab === 'profile'
+                      ? 'bg-teal-600 text-white'
+                      : isDarkMode 
+                        ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <User className="w-4 h-4" />
+                  Profile
+                </button>
+                <button
+                  onClick={() => setActiveTab('security')}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all ${
+                    activeTab === 'security'
+                      ? 'bg-teal-600 text-white'
+                      : isDarkMode 
+                        ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  Security
+                </button>
+              </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="px-8 py-6">
+              {/* Profile Tab */}
+              {activeTab === 'profile' && (
+                <div className="animate-fadeIn">
+                  <div className="mb-6">
+                    <h3 className={`text-lg font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                      Personal Information
+                    </h3>
+                    <p className={`text-sm mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                      Update your personal details here
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
                         First Name <span className="text-red-500">*</span>
@@ -484,11 +433,11 @@ const SettingsPage: React.FC = () => {
 
                     <div className="space-y-2">
                       <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
-                        Phone
+                        Phone Number
                       </label>
                       <input
                         type="tel"
-                        placeholder="+1 (555) 000-0000"
+                        placeholder="+90 (555) 000-0000"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         className={`w-full px-4 py-3 rounded-xl border-2 transition-all ${
@@ -500,7 +449,7 @@ const SettingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                  <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
                     <button
                       onClick={handleSaveDetails}
                       disabled={saving}
@@ -515,29 +464,22 @@ const SettingsPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Security Tab */}
-            {activeTab === 'security' && (
-              <div className="space-y-6 animate-fadeIn">
-                {/* Password Change */}
-                <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl p-6 shadow-sm`}>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                      <Lock className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div>
-                      <h2 className={`text-xl font-bold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
-                        Change Password
-                      </h2>
-                      <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                        Ensure your account is using a strong password
-                      </p>
-                    </div>
+              {/* Security Tab */}
+              {activeTab === 'security' && (
+                <div className="animate-fadeIn">
+                  <div className="mb-6">
+                    <h3 className={`text-lg font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                      Change Password
+                    </h3>
+                    <p className={`text-sm mt-1 ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+                      Ensure your account is using a strong password
+                    </p>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-6 max-w-2xl">
+                    {/* Current Password */}
                     <div className="space-y-2">
                       <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
                         Current Password <span className="text-red-500">*</span>
@@ -564,7 +506,8 @@ const SettingsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* New Password Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className={`block text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}>
                           New Password <span className="text-red-500">*</span>
@@ -620,7 +563,7 @@ const SettingsPage: React.FC = () => {
 
                     {/* Password Strength Indicator */}
                     {newPassword && (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex items-center justify-between text-sm">
                           <span className={isDarkMode ? "text-gray-400" : "text-gray-500"}>Password Strength</span>
                           <span className={`font-medium ${
@@ -635,24 +578,24 @@ const SettingsPage: React.FC = () => {
                           {[1, 2, 3, 4, 5].map((level) => (
                             <div
                               key={level}
-                              className={`h-1.5 flex-1 rounded-full transition-colors ${
+                              className={`h-2 flex-1 rounded-full transition-colors ${
                                 level <= passwordStrength ? getPasswordStrengthColor() : isDarkMode ? "bg-gray-700" : "bg-gray-200"
                               }`}
                             />
                           ))}
                         </div>
-                        <ul className={`text-xs space-y-1 mt-2 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
+                        <ul className={`text-xs space-y-1 ${isDarkMode ? "text-gray-500" : "text-gray-400"}`}>
                           <li className={newPassword.length >= 8 ? "text-green-500" : ""}>
-                            • At least 8 characters
+                            {newPassword.length >= 8 ? "✓" : "○"} At least 8 characters
                           </li>
                           <li className={/[A-Z]/.test(newPassword) ? "text-green-500" : ""}>
-                            • At least 1 uppercase letter
+                            {/[A-Z]/.test(newPassword) ? "✓" : "○"} At least 1 uppercase letter
                           </li>
                           <li className={/[0-9]/.test(newPassword) ? "text-green-500" : ""}>
-                            • At least 1 number
+                            {/[0-9]/.test(newPassword) ? "✓" : "○"} At least 1 number
                           </li>
                           <li className={/[^A-Za-z0-9]/.test(newPassword) ? "text-green-500" : ""}>
-                            • At least 1 special character
+                            {/[^A-Za-z0-9]/.test(newPassword) ? "✓" : "○"} At least 1 special character
                           </li>
                         </ul>
                       </div>
@@ -678,7 +621,7 @@ const SettingsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                  <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
                     <button
                       onClick={handleChangePassword}
                       disabled={saving || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
@@ -687,14 +630,14 @@ const SettingsPage: React.FC = () => {
                       {saving ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
                       ) : (
-                        <Shield className="w-5 h-5" />
+                        <Lock className="w-5 h-5" />
                       )}
                       Update Password
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

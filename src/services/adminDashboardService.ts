@@ -13,8 +13,6 @@ class AdminDashboardService {
   // Get admin stats
   async getAdminStats(): Promise<AdminDashboardStats> {
     try {
-      // Backend'de admin stats endpoint'i yok, ticket ve user API'lerinden hesaplayacağız
-      
       // 1. Tüm ticket'ları çek
       const ticketsResponse = await apiClient.get('/api/admin/tickets', {
         params: {
@@ -34,11 +32,9 @@ class AdminDashboardService {
       const tickets = ticketsResponse.data.content || [];
       const users = usersResponse.data.content || [];
 
-      // Total Team Tickets
-      const totalTeamTickets = tickets.length;
-
-      // Total Users
-      const totalUsers = users.length;
+      // FIX: totalElements kullan, yoksa array length'i kullan
+      const totalTeamTickets = ticketsResponse.data.totalElements ?? tickets.length;
+      const totalUsers = usersResponse.data.totalElements ?? users.length;
 
       // Resolved This Week (son 7 gün içinde resolved olan ticket'lar)
       const oneWeekAgo = new Date();
@@ -55,7 +51,6 @@ class AdminDashboardService {
         t.status === 'OPEN' || t.status === 'IN_PROGRESS' || t.status === 'BLOCKED'
       ).length;
 
-      // TODO: Change percentages gerçek hesaplama yapılmalı (önceki haftayla karşılaştırma)
       return {
         totalTeamTickets,
         totalTeamTicketsChange: '+18%',
@@ -75,19 +70,12 @@ class AdminDashboardService {
   // GET AGENT PERFORMANCE (Top performers)
   async getAgentPerformance(): Promise<AgentPerformance[]> {
     try {
-      // Backend: GET /api/tickets/analytics/top-resolvers
       const response = await apiClient.get('/api/tickets/analytics/top-resolvers');
       const topResolvers = response.data || [];
 
-      // Backend TicketResolutionStatsDTO mapping
-      // { userId, userName, userSurname, userEmail, resolvedCount, 
-      //   unResolvedCount, successRate, averageResolutionTime }
-
       return topResolvers.map((resolver: any, index: number) => {
-        // Avatar oluştur
         const avatar = `${resolver.userName.charAt(0)}${resolver.userSurname.charAt(0)}`;
         
-        // Status belirleme (ilk 3 online, diğerleri busy/offline)
         let status: 'online' | 'offline' | 'busy' = 'online';
         if (index >= 3) {
           status = Math.random() > 0.5 ? 'busy' : 'offline';
@@ -113,9 +101,6 @@ class AdminDashboardService {
   // Get department stats
   async getDepartmentStats(): Promise<DepartmentStats[]> {
     try {
-      // Backend'de department stats endpoint'i yok
-      // Kullanıcıları ve ticket'larını department'a göre grupla
-      
       const usersResponse = await apiClient.get('/api/admin/users', {
         params: {
           page: 0,
@@ -133,7 +118,6 @@ class AdminDashboardService {
       const users = usersResponse.data.content || [];
       const tickets = ticketsResponse.data.content || [];
 
-      // Department'ları grupla
       const departmentMap = new Map<string, {
         users: any[];
         tickets: any[];
@@ -147,7 +131,6 @@ class AdminDashboardService {
         departmentMap.get(dept)!.users.push(user);
       });
 
-      // Her kullanıcının ticket'larını department'a ekle
       tickets.forEach((ticket: any) => {
         const assignedUser = users.find((u: any) => u.id === ticket.assignedToId);
         if (assignedUser) {
@@ -158,7 +141,6 @@ class AdminDashboardService {
         }
       });
 
-      // Department stats hesapla
       const departmentStats: DepartmentStats[] = [];
       departmentMap.forEach((data, deptName) => {
         const deptTickets = data.tickets;
@@ -184,7 +166,7 @@ class AdminDashboardService {
           resolvedTickets,
           pendingTickets,
           overdueTickets,
-          avgResolutionTime: '3.5h', // TODO: Gerçek hesaplama
+          avgResolutionTime: '3.5h',
         });
       });
 
@@ -198,7 +180,6 @@ class AdminDashboardService {
   // Get Ticket Distribution
   async getTicketDistribution(): Promise<TicketDistribution[]> {
     try {
-      // Backend'den tüm ticket'ları çek ve status'e göre grupla
       const response = await apiClient.get('/api/admin/tickets', {
         params: {
           page: 0,
@@ -207,16 +188,14 @@ class AdminDashboardService {
       });
 
       const tickets = response.data.content || [];
-      const total = tickets.length || 1; // 0 bölme hatası önleme
+      const total = tickets.length || 1;
 
-      // Status'e göre grupla
       const statusMap = new Map<string, number>();
       tickets.forEach((ticket: any) => {
         const status = ticket.status || 'UNKNOWN';
         statusMap.set(status, (statusMap.get(status) || 0) + 1);
       });
 
-      // Distribution array'ine çevir
       const distribution: TicketDistribution[] = [];
       const statusColors: Record<string, string> = {
         'OPEN': '#06b6d4',
@@ -247,7 +226,6 @@ class AdminDashboardService {
   // Get Team Activity Trend
   async getTeamActivityTrend(period: 'week' | 'month' | 'year' = 'week'): Promise<TeamActivityData> {
     try {
-      // Backend'den tüm ticket'ları çek
       const response = await apiClient.get('/api/admin/tickets', {
         params: {
           page: 0,
@@ -257,7 +235,6 @@ class AdminDashboardService {
 
       const tickets = response.data.content || [];
 
-      // Period'a göre zaman aralığı ve label'lar belirle
       let labels: string[] = [];
       let dataPoints: number;
       let startDate: Date;
@@ -277,12 +254,10 @@ class AdminDashboardService {
         startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
       }
 
-      // Her veri noktası için ticket'ları say
       const createdData: number[] = new Array(dataPoints).fill(0);
       const resolvedData: number[] = new Array(dataPoints).fill(0);
 
       tickets.forEach((ticket: any) => {
-        // Created tickets
         const createdAt = new Date(ticket.createdAt);
         if (createdAt >= startDate) {
           let createIndex = -1;
@@ -304,7 +279,6 @@ class AdminDashboardService {
           }
         }
 
-        // Resolved tickets
         if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') {
           const updatedAt = new Date(ticket.updatedAt);
           if (updatedAt >= startDate) {
@@ -337,7 +311,6 @@ class AdminDashboardService {
       };
     } catch (error) {
       console.error('Error fetching team activity trend:', error);
-      // Hata durumunda boş data dön
       const emptyData = {
         week: {
           labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
@@ -380,7 +353,6 @@ class AdminDashboardService {
   // GET OVERDUE TICKETS
   async getOverdueTickets(): Promise<OverdueTicket[]> {
     try {
-      // Backend'den ticket'ları çek ve overdue olanları filtrele
       const response = await apiClient.get('/api/admin/tickets', {
         params: {
           page: 0,
@@ -391,7 +363,6 @@ class AdminDashboardService {
       const tickets = response.data.content || [];
       const now = new Date();
 
-      // Overdue ticket'ları filtrele
       const overdueTickets = tickets
         .filter((ticket: any) => {
           if (!ticket.dueDate) return false;
@@ -403,12 +374,10 @@ class AdminDashboardService {
           const diffMs = now.getTime() - dueDate.getTime();
           const daysOverdue = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-          // Priority mapping
           let priority = 'Medium';
           if (ticket.priority === 'HIGH') priority = 'High';
           else if (ticket.priority === 'LOW') priority = 'Low';
 
-          // Assigned user bilgisi
           const assignedTo = ticket.assignedToEmail 
             ? ticket.assignedToEmail.split('@')[0]
             : 'Unassigned';
@@ -437,39 +406,34 @@ class AdminDashboardService {
     }
   }
 
-  // GET RECENT TICKETS (NEW!)
+  // GET RECENT TICKETS
   async getRecentTickets(): Promise<RecentTicket[]> {
     try {
-      // Backend'den son güncellenmiş ticket'ları çek
       const response = await apiClient.get('/api/admin/tickets', {
         params: {
           page: 0,
           size: 20,
-          sort: 'updatedAt,desc', // Son güncellenenler önce
+          sort: 'updatedAt,desc',
         },
       });
 
       const tickets = response.data.content || [];
 
       return tickets.map((ticket: any) => {
-        // Status mapping
         let status: 'new' | 'in_progress' | 'done' | 'blocked' = 'new';
         if (ticket.status === 'IN_PROGRESS') status = 'in_progress';
         else if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') status = 'done';
         else if (ticket.status === 'BLOCKED') status = 'blocked';
         else if (ticket.status === 'OPEN') status = 'new';
 
-        // Priority mapping
         let priority: 'low' | 'medium' | 'high' = 'medium';
         if (ticket.priority === 'HIGH') priority = 'high';
         else if (ticket.priority === 'LOW') priority = 'low';
 
-        // Assigned user
         const assignedTo = ticket.assignedToEmail 
           ? ticket.assignedToEmail.split('@')[0]
           : 'Unassigned';
 
-        // Project/Category
         const project = ticket.category || 'General';
 
         return {
@@ -489,4 +453,5 @@ class AdminDashboardService {
     }
   }
 }
+
 export const adminDashboardService = new AdminDashboardService();

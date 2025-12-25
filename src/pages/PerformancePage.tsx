@@ -15,6 +15,28 @@ type StatusBucket = {
   closed: number;
   overdue: number;
 };
+
+// Backend UserStatsDto ile uyumlu
+type UserStats = {
+  createdCount: number;
+  assignedCount: number;
+  openCount: number;
+  inProgressCount: number;
+  resolvedCount: number;
+  closedCount: number;
+  cancelledCount: number;
+};
+
+// Backend'den gelen kullanıcı tipi
+type UserOption = {
+  id: number;
+  name: string;
+  surname: string;
+  email: string;
+};
+
+const API_BASE_URL = "http://localhost:8081";
+
 const getAssigneeLabel = (t: Ticket): string => {
   if (t.owner?.firstName || t.owner?.lastName) {
     return `${t.owner.firstName || ""} ${t.owner.lastName || ""}`.trim();
@@ -39,6 +61,7 @@ const normalizeStatus = (t: Ticket): keyof StatusBucket => {
   if (raw === "CLOSED") return "closed";
   return "opened";
 };
+
 const PerformancePage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
 
@@ -52,6 +75,12 @@ const PerformancePage: React.FC = () => {
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // YENİ: Backend'den kullanıcı listesi ve stats
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
   const isOverdue = (t: Ticket): boolean => {
     if (!t.dueDate) return false;
 
@@ -66,6 +95,73 @@ const PerformancePage: React.FC = () => {
     const dueDate = new Date(t.dueDate);
     return now > dueDate;
   };
+
+  // YENİ: Backend'den kullanıcıları yükle
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const token = sessionStorage.getItem("accessToken");
+        const response = await fetch(`${API_BASE_URL}/api/admin/users?page=0&size=1000`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const userList = data.content || data || [];
+          setUsers(userList.map((u: any) => ({
+            id: u.id,
+            name: u.name || "",
+            surname: u.surname || "",
+            email: u.email || "",
+          })));
+        }
+      } catch (error) {
+        console.error("Error loading users:", error);
+      }
+    };
+    loadUsers();
+  }, []);
+
+  // YENİ: Seçilen kullanıcının istatistiklerini yükle
+  useEffect(() => {
+    const loadUserStats = async () => {
+      // "all" seçiliyse veya id değilse stats yükleme
+      if (selectedPerson === "all" || !selectedPerson.startsWith("user_")) {
+        setUserStats(null);
+        return;
+      }
+
+      const userId = selectedPerson.replace("user_", "");
+      
+      try {
+        setStatsLoading(true);
+        const token = sessionStorage.getItem("accessToken");
+        const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/stats`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+        });
+        
+        if (response.ok) {
+          const stats: UserStats = await response.json();
+          setUserStats(stats);
+        } else {
+          setUserStats(null);
+        }
+      } catch (error) {
+        console.error("Error loading user stats:", error);
+        setUserStats(null);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    loadUserStats();
+  }, [selectedPerson]);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -91,17 +187,43 @@ const PerformancePage: React.FC = () => {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [isFilterOpen]);
 
+  // YENİ: Kullanıcı seçenekleri - backend'den gelen users + "all"
   const peopleOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const t of tickets) set.add(getAssigneeLabel(t));
-    return ["all", ...Array.from(set)];
-  }, [tickets]);
+    const options: { value: string; label: string; initials?: string }[] = [
+      { value: "all", label: "All People" }
+    ];
+    
+    users.forEach(u => {
+      const fullName = `${u.name} ${u.surname}`.trim() || u.email;
+      const initials = `${u.name.charAt(0)}${u.surname.charAt(0)}`.toUpperCase() || "??";
+      options.push({
+        value: `user_${u.id}`,
+        label: fullName,
+        initials
+      });
+    });
+    
+    return options;
+  }, [users]);
+
+  // Seçilen kullanıcının adını bul
+  const selectedPersonLabel = useMemo(() => {
+    const option = peopleOptions.find(p => p.value === selectedPerson);
+    return option?.label || "All People";
+  }, [selectedPerson, peopleOptions]);
 
   const filteredTickets = useMemo(() => {
     let data = [...tickets];
 
-    if (selectedPerson !== "all") {
-      data = data.filter((t) => getAssigneeLabel(t) === selectedPerson);
+    // Kullanıcı seçiliyse ve backend stats varsa, ticket filtrelemeye gerek yok
+    // Ama yine de ticket bazlı filtreleme yapalım (tarih filtresi için)
+    if (selectedPerson !== "all" && selectedPerson.startsWith("user_")) {
+      const userId = selectedPerson.replace("user_", "");
+      data = data.filter((t) => {
+        const assignedToId = String((t as any).assignedTo || "");
+        const createdById = String((t as any).createdBy || "");
+        return assignedToId === userId || createdById === userId;
+      });
     }
 
     if (selectedDate) {
@@ -119,26 +241,43 @@ const PerformancePage: React.FC = () => {
 
   //Bucket Hesaplaması (Admin'in filtrelerine duyarlı)
   const buckets: StatusBucket = useMemo(() => {
-  const b: StatusBucket = { total: 0, opened: 0, waiting: 0, inProgress: 0, resolved: 0, closed: 0, overdue: 0 };
-  
-  b.total = filteredTickets.length;
-
-  for (const t of filteredTickets) {
-    const st = normalizeStatus(t);
-    if (st in b) {
-       b[st] += 1;
+    // YENİ: Eğer kullanıcı seçiliyse ve backend'den stats geldiyse, onu kullan
+    if (selectedPerson !== "all" && selectedPerson.startsWith("user_") && userStats) {
+      const total = userStats.openCount + userStats.inProgressCount + 
+                    userStats.resolvedCount + userStats.closedCount;
+      
+      return {
+        total,
+        opened: userStats.openCount,
+        waiting: 0,
+        inProgress: userStats.inProgressCount,
+        resolved: userStats.resolvedCount,
+        closed: userStats.closedCount,
+        overdue: 0, // Backend'den overdue bilgisi gelmiyor
+      };
     }
-    // Overdue mantığı: Resolved veya Closed olmayan, süresi geçmiş biletler
-    if (st !== "resolved" && st !== "closed") {
-      const now = new Date();
-      const due = t.dueDate ? new Date(t.dueDate) : null;
-      if (due && now > due) {
-        b.overdue += 1;
+
+    // Eski mantık: ticket'lardan hesapla
+    const b: StatusBucket = { total: 0, opened: 0, waiting: 0, inProgress: 0, resolved: 0, closed: 0, overdue: 0 };
+    
+    b.total = filteredTickets.length;
+
+    for (const t of filteredTickets) {
+      const st = normalizeStatus(t);
+      if (st in b) {
+         b[st] += 1;
+      }
+      // Overdue mantığı: Resolved veya Closed olmayan, süresi geçmiş biletler
+      if (st !== "resolved" && st !== "closed") {
+        const now = new Date();
+        const due = t.dueDate ? new Date(t.dueDate) : null;
+        if (due && now > due) {
+          b.overdue += 1;
+        }
       }
     }
-  }
-  return b;
-}, [filteredTickets]);
+    return b;
+  }, [filteredTickets, selectedPerson, userStats]);
 
   const overdueCount = useMemo(() => {
     const now = new Date().getTime();
@@ -178,36 +317,42 @@ const PerformancePage: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full">
-      <div className="relative">
-        <div
-          className="w-52 h-52 rounded-full shadow-lg transition-all duration-700"
-          style={{ background: buckets.total === 0 ? (isDarkMode ? '#374151' : '#e5e7eb') : bg }}
-        >
-          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-inner flex items-center justify-center`}>
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{buckets.total}</div>
-              <div className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>TOTAL</div>
+      {statsLoading ? (
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
+      ) : (
+        <>
+          <div className="relative">
+            <div
+              className="w-52 h-52 rounded-full shadow-lg transition-all duration-700"
+              style={{ background: buckets.total === 0 ? (isDarkMode ? '#374151' : '#e5e7eb') : bg }}
+            >
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-inner flex items-center justify-center`}>
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>{buckets.total}</div>
+                  <div className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>TOTAL</div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="mt-6 grid grid-cols-4 gap-x-2 w-full px-2">
-        {[
-          { label: "Total", value: buckets.total, color: "bg-gray-400" },
-          { label: "Opened", value: buckets.opened, color: "bg-violet-700" },
-          { label: "In Progress", value: buckets.inProgress, color: "bg-cyan-500" },
-          { label: "Resolved", value: buckets.resolved, color: "bg-teal-500" },
-        ].map((item) => (
-          <div key={item.label} className="flex flex-col items-center">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
-              <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{item.label}</span>
-            </div>
-            <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{item.value}</span>
+          <div className="mt-6 grid grid-cols-4 gap-x-2 w-full px-2">
+            {[
+              { label: "Total", value: buckets.total, color: "bg-gray-400" },
+              { label: "Opened", value: buckets.opened, color: "bg-violet-700" },
+              { label: "In Progress", value: buckets.inProgress, color: "bg-cyan-500" },
+              { label: "Resolved", value: buckets.resolved, color: "bg-teal-500" },
+            ].map((item) => (
+              <div key={item.label} className="flex flex-col items-center">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
+                  <span className={`text-[10px] font-bold uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{item.label}</span>
+                </div>
+                <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{item.value}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 };
@@ -228,28 +373,35 @@ const PerformancePage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full justify-center px-4">
-      <div className={`h-48 flex items-end justify-around pb-2 border-b-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-        {bars.map((bar) => (
-          <div key={bar.label} className="flex flex-col items-center gap-2 group w-16">
-            <span className={`text-xs font-bold transition-all ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-              {bar.value}
-            </span>
-            <div
-              className="w-full rounded-t-md transition-all duration-500 ease-out hover:brightness-110 shadow-sm"
-              style={{ 
-                height: `${heightPx(bar.value)}px`,
-                backgroundColor: bar.color,
-              }}
-            />
-            <span className={`text-[9px] text-center uppercase tracking-tighter font-bold mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              {bar.label}
-            </span>
-          </div>
-        ))}
-      </div>
+      {statsLoading ? (
+        <div className="flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500"></div>
+        </div>
+      ) : (
+        <div className={`h-48 flex items-end justify-around pb-2 border-b-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          {bars.map((bar) => (
+            <div key={bar.label} className="flex flex-col items-center gap-2 group w-16">
+              <span className={`text-xs font-bold transition-all ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                {bar.value}
+              </span>
+              <div
+                className="w-full rounded-t-md transition-all duration-500 ease-out hover:brightness-110 shadow-sm"
+                style={{ 
+                  height: `${heightPx(bar.value)}px`,
+                  backgroundColor: bar.color,
+                }}
+              />
+              <span className={`text-[9px] text-center uppercase tracking-tighter font-bold mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {bar.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -270,9 +422,17 @@ const PerformancePage: React.FC = () => {
         {/* Header */}
         <div className={`px-8 py-6 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between">
-            <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-3">
-              Performance Overview
-            </h1>
+            <div>
+              <h1 className="text-cyan-800 text-2xl font-semibold font-['Inter'] leading-9 mb-1">
+                Performance Overview
+              </h1>
+              {/* YENİ: Seçili kullanıcıyı göster */}
+              {selectedPerson !== "all" && (
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Viewing: <span className="font-medium text-teal-600">{selectedPersonLabel}</span>
+                </p>
+              )}
+            </div>
 
             {/* Dark Mode Toggle */}
             <div className="flex items-center gap-2">
@@ -318,7 +478,7 @@ const PerformancePage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                    {total}
+                    {statsLoading ? "..." : total}
                   </h3>
                   <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Total Tickets
@@ -337,7 +497,7 @@ const PerformancePage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                    {overdueCount}
+                    {statsLoading ? "..." : overdueCount}
                   </h3>
                   <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Overdue
@@ -356,7 +516,7 @@ const PerformancePage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className={`text-3xl font-bold mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                    {buckets.closed}
+                    {statsLoading ? "..." : buckets.closed}
                   </h3>
                   <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Completed
@@ -380,7 +540,7 @@ const PerformancePage: React.FC = () => {
                   Ticket Distribution
                 </h3>
                 <p className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  {filteredTickets.length} tickets {selectedPerson !== "all" || selectedDate ? "(filtered)" : ""}
+                  {statsLoading ? "Loading..." : `${buckets.total} tickets`} {selectedPerson !== "all" || selectedDate ? "(filtered)" : ""}
                 </p>
               </div>
 
@@ -423,7 +583,7 @@ const PerformancePage: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Person Filter */}
+                        {/* Person Filter - YENİ: Backend'den gelen kullanıcılar */}
                         <div className="mb-4">
                           <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -431,17 +591,22 @@ const PerformancePage: React.FC = () => {
                             </svg>
                             Person
                           </label>
-                          <div className={`max-h-36 overflow-auto rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                          <div className={`max-h-48 overflow-auto rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                             {peopleOptions.map((p) => (
                               <button
-                                key={p}
-                                onClick={() => setSelectedPerson(p)}
-                                className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedPerson === p
+                                key={p.value}
+                                onClick={() => setSelectedPerson(p.value)}
+                                className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2 ${selectedPerson === p.value
                                     ? isDarkMode ? 'bg-teal-600/20 text-teal-400' : 'bg-teal-50 text-teal-700'
                                     : isDarkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
                                   }`}
                               >
-                                {p === "all" ? "All People" : p}
+                                {p.initials && (
+                                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br from-teal-500 to-cyan-600`}>
+                                    {p.initials}
+                                  </div>
+                                )}
+                                <span>{p.label}</span>
                               </button>
                             ))}
                           </div>
@@ -538,7 +703,7 @@ const PerformancePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Chart Card */}
+            {/* Chart Area */}
             <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl shadow-sm overflow-hidden`}>
               <div className="h-80 p-6">
                 {selectedChart === "pie" ? <PieChartVisual /> : <BarChartVisual />}
@@ -546,7 +711,7 @@ const PerformancePage: React.FC = () => {
 
               {/* Summary Stats */}
               <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className="grid grid-cols-5 gap-4"> {/* Kolon sayısını Overdue için 5'e çıkardık */}
+                <div className="grid grid-cols-5 gap-4">
                   {[
                     {
                       label: "Opened",
@@ -577,14 +742,14 @@ const PerformancePage: React.FC = () => {
                       value: buckets.overdue,
                       color: "text-red-600",
                       bg: isDarkMode ? "bg-red-900/20" : "bg-red-50",
-                      isAlert: true // Gecikme olduğu için vurgu yapabiliriz
+                      isAlert: true
                     },
                   ].map((stat) => (
                     <div
                       key={stat.label}
                       className={`${stat.bg} rounded-xl p-4 text-center transition-transform hover:scale-105 ${stat.isAlert && buckets.overdue > 0 ? 'ring-2 ring-red-500' : ''}`}
                     >
-                      <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                      <p className={`text-2xl font-bold ${stat.color}`}>{statsLoading ? "..." : stat.value}</p>
                       <p className={`text-xs mt-1 font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         {stat.label}
                       </p>
