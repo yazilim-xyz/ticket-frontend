@@ -157,7 +157,7 @@ const getAuthHeaders = () => {
 
 // ============================================
 // ADMIN SERVICE
-// ============================================
+// ===========================================
 
 export const adminService = {
   /**
@@ -482,6 +482,49 @@ export const adminService = {
 
     console.log('✅ User deleted successfully');
   },
+
+  /**
+   * Self-register kullanıcılar için ON yapınca hem approved hem active true olmalı.
+   * OFF yapınca active false yapıyoruz (istersen approved=false da ekleyebilirsin).
+   */
+  setUserApprovalStatus: async (userId: string, makeActive: boolean): Promise<AdminUser> => {
+    if (makeActive) {
+      // 1) önce onay ver (approved=true)
+      await adminService.approveUser(userId, true);
+
+      // 2) sonra hesabı aktif et (active=true)
+      const resp = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/active`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ active: true }),
+      });
+
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(errorText || `Failed to activate user: HTTP ${resp.status}`);
+      }
+
+      return await adminService.getUserById(userId);
+    }
+
+    // OFF: active=false
+    const resp = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/active`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ active: false }),
+    });
+
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      throw new Error(errorText || `Failed to deactivate user: HTTP ${resp.status}`);
+    }
+
+    // İstersen burada approved=false da yapabilirsin:
+    await adminService.approveUser(userId, false);
+
+    return await adminService.getUserById(userId);
+  },
+
 
   /**
    * Add Department

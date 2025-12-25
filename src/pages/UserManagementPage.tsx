@@ -71,7 +71,7 @@ const UserManagementPage: React.FC = () => {
     try {
       const current = users.find(u => u.id === userId);
       const next = current?.status !== 'active'; // ON mu olacak?
-      const updatedUser = await adminService.setUserApprovalStatus(userId, !!next);
+       const updatedUser = await adminService.setUserApprovalStatus(userId, !!next);
 
       setUsers(users.map(u => u.id === userId ? updatedUser : u));
       showToast(
