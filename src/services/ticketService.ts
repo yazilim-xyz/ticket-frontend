@@ -105,6 +105,8 @@ type TicketDto = {
   assignedToEmail?: string | null;
   assignedToName?: string | null;
 
+  resolutionSummary?: string | null;
+
   createdAt: string;
   updatedAt: string;
   dueDate?: string | null;
@@ -138,6 +140,7 @@ function mapTicketDtoToTicket(dto: TicketDto): Ticket {
     category: dto.category ?? 'OTHER',
     priority: dto.priority as any,
     status: dto.status as any,
+    resolutionSummary: dto.resolutionSummary || '',
 
     // String değerler (eski uyumluluk için)
     assignedTo: dto.assignedToEmail || dto.assignedToName || (dto.assignedToId ? String(dto.assignedToId) : ''),
@@ -171,7 +174,7 @@ class TicketService {
 
     const res = await authenticatedFetch(url, { method: "GET" });
     const data = await res.json();
-    
+
     const dtos = extractContent<TicketDto>(data);
     return dtos.map(mapTicketDtoToTicket);
   }
@@ -186,7 +189,7 @@ class TicketService {
 
     const res = await authenticatedFetch(url, { method: "GET" });
     const data = await res.json();
-    
+
     // my-assigned array döndürüyor (paginated değil)
     const dtos = Array.isArray(data) ? data : (data.content || []);
     return dtos.map(mapTicketDtoToTicket);
@@ -214,11 +217,10 @@ class TicketService {
     const endpoint = isAdmin()
       ? `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}`
       : `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/detail`;
-    
-    console.log('📋 Fetching ticket detail from:', endpoint);
-    
+
     const res = await authenticatedFetch(endpoint, { method: "GET" });
     const dto: TicketDto = await res.json();
+
     return mapTicketDtoToTicket(dto);
   }
 
@@ -236,13 +238,13 @@ class TicketService {
     dueDate?: string;
   }): Promise<Ticket> {
     const currentUser = getCurrentUser();
-    
+
     const endpoint = isAdmin()
       ? `${API_BASE_URL}/api/admin/tickets`
       : `${API_BASE_URL}/api/tickets`;
-    
+
     let body: any;
-    
+
     if (isAdmin()) {
       // Admin endpoint: assignedToUserId bekliyor (assignedToId degil!)
       body = {
@@ -261,14 +263,14 @@ class TicketService {
         createdById: currentUser?.id,
       };
     }
-    
+
     console.log('Creating ticket:', { endpoint, body });
-    
+
     const res = await authenticatedFetch(endpoint, {
       method: "POST",
       body: JSON.stringify(body),
     });
-    
+
     const dto: TicketDto = await res.json();
     return mapTicketDtoToTicket(dto);
   }
@@ -282,17 +284,17 @@ class TicketService {
     const endpoint = isAdmin()
       ? `${API_BASE_URL}/api/admin/tickets/${encodeURIComponent(id)}/assign`
       : `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/assign`;
-    
+
     // Admin endpoint expects { assignedToUserId }, User endpoint expects { assignedToId }
     const body = isAdmin()
       ? { assignedToUserId: assignedToId }
       : { assignedToId };
-    
+
     const res = await authenticatedFetch(endpoint, {
       method: "PATCH",
       body: JSON.stringify(body),
     });
-    
+
     // Admin endpoint returns void, User endpoint returns TicketDto
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
@@ -302,7 +304,7 @@ class TicketService {
         return mapTicketDtoToTicket(dto);
       }
     }
-    
+
     return { success: true };
   }
 
@@ -314,7 +316,7 @@ class TicketService {
     const url = `${API_BASE_URL}/api/users`;
     const res = await authenticatedFetch(url, { method: "GET" });
     const data = await res.json();
-    
+
     // UserListItemDto: { id, name, surname, email, role }
     const users = Array.isArray(data) ? data : (data.content || []);
     return users.map((u: any) => ({
@@ -351,7 +353,7 @@ class TicketService {
         return JSON.parse(text);
       }
     }
-    
+
     // Return success indicator for void responses
     return { success: true };
   }
@@ -417,12 +419,12 @@ class TicketService {
   async addComment(ticketId: string, content: string): Promise<any> {
     const currentUser = getCurrentUser();
     const url = `${API_BASE_URL}/api/tickets/${encodeURIComponent(ticketId)}/comments`;
-    
+
     const res = await authenticatedFetch(url, {
       method: "POST",
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         content,
-        authorId: currentUser?.id 
+        authorId: currentUser?.id
       }),
     });
     return res.json();
@@ -436,6 +438,23 @@ class TicketService {
     const url = `${API_BASE_URL}/api/tickets/analytics/top-resolvers`;
     const res = await authenticatedFetch(url, { method: "GET" });
     return res.json();
+  }
+
+  /* =======================
+     UPDATE TICKET RESOLUTION
+     PATCH /api/tickets/{id}/resolution
+  ======================= */
+  async updateResolution(id: string, resolutionSummary: string): Promise<void> {
+    const endpoint = `${API_BASE_URL}/api/tickets/${encodeURIComponent(id)}/resolution`;
+
+    console.log('📝 Updating ticket resolution:', { id, resolutionSummary });
+
+    await authenticatedFetch(endpoint, {
+      method: "PATCH",
+      body: JSON.stringify({ resolutionSummary }),
+    });
+
+    console.log('✅ Resolution updated successfully');
   }
 }
 

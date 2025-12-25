@@ -3,7 +3,7 @@ export interface User {
   id: string;
   email: string;
   firstName: string;
-  lastName:string;
+  lastName: string;
   department: string;
   role: 'admin' | 'user';
   profilePhoto?: string;
@@ -28,11 +28,12 @@ export interface Ticket {
   dueDate: string;
   updatedAt: string;
   solution?: string;
+  resolutionSummary: string;
   owner?: {
     firstName: string;
     lastName: string;
   }
-  assignee?:{
+  assignee?: {
     firstName: string;
     lastName: string;
   }

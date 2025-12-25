@@ -20,15 +20,19 @@ const TicketDetailPage: React.FC = () => {
   const [solution, setSolution] = useState('');
   const [isSavingSolution, setIsSavingSolution] = useState(false);
   const handleSolutionSave = async () => {
-    if (!ticket) return;
+    if (!ticket || !solution.trim()) return;
 
     try {
       setIsSavingSolution(true);
-      await ticketService.updateTicket(ticket.id, { solution } as any);
-      const updated = await ticketService.getTicketById(ticket.id);
-      setTicket(updated);
-      setSolution((updated as any).solution ?? solution);
-    } finally {
+      await ticketService.updateResolution(ticket.id, solution.trim());
+
+      // 1 saniye bekle, sonra sayfayı yenile
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      console.error('Failed to save solution:', error);
+      alert('Çözüm kaydedilemedi. Lütfen tekrar deneyin.');
       setIsSavingSolution(false);
     }
   };
@@ -47,10 +51,10 @@ const TicketDetailPage: React.FC = () => {
         setLoading(true);
         const data = await ticketService.getTicketById(id);
         setTicket(data);
+        console.log(data)
         if (data) {
           setSelectedStatus(data.status);
-          // ÖNEMLİ: Mevcut çözümü textarea'ya aktar
-          setSolution((data as any).solution || '');
+          setSolution((data as any).resolutionSummary || '');
         }
       } catch (error) {
         console.error('Failed to fetch ticket:', error);
