@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { AdminUser } from '../../types';
+import { AdminUser } from '../../services/adminService';
 
 interface EditUserModalProps {
   isOpen: boolean;
@@ -26,11 +26,16 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSubmit
 
   useEffect(() => {
     if (user) {
+      // fullName'den name ve surname parse et
+      const nameParts = user.fullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
       setFormData({
-        name: user.name,
-        surname: user.surname,
+        name: firstName,
+        surname: lastName,
         email: user.email,
-        department: '',
+        department: user.department || '',
       });
     }
   }, [user]);
@@ -50,7 +55,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSubmit
       return;
     }
 
-    onSubmit(user.id, {
+    onSubmit(Number(user.id), {
       name: formData.name,
       surname: formData.surname,
       department: formData.department

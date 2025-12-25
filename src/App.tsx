@@ -21,7 +21,6 @@ import AiChatBotPage from './pages/AiChatBotPage';
 import ChatPage from './pages/ChatPage';
 import PerformancePage from './pages/PerformancePage';
 import UserStatisticsPage from './pages/UserStatisticsPage';
-import ActivityLogPage from './pages/ActivityLogPage';
 import SettingsPage from './pages/SettingsPage';
 import Error404Page from './pages/Error404Page';
 import Error403Page from './pages/Error403Page';
@@ -54,7 +53,6 @@ function App() {
             <Route path="/all-tickets" element={<ProtectedRoute requiredRole="admin"><AllTicketsPage /></ProtectedRoute>} />
             <Route path="/create-ticket" element={<ProtectedRoute requiredRole="admin"><CreateTicketPage /></ProtectedRoute>} />
             <Route path="/performance" element={<ProtectedRoute requiredRole="admin"><PerformancePage /></ProtectedRoute>} />
-            <Route path="/activity-log" element={<ProtectedRoute requiredRole="admin"><ActivityLogPage /></ProtectedRoute>} />
 
             {/* Both */}
             <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />

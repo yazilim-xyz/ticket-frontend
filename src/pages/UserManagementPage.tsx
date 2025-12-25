@@ -156,17 +156,25 @@ const UserManagementPage: React.FC = () => {
     setIsEditUserModalOpen(true);
   };
 
-  const handleEditUserSubmit = async (userId: string, userData: {
-      fullName: string;
-      email: string;
+  const handleEditUserSubmit = async (userId: number, userData: {
+      name: string;
+      surname: string;
       department: string;
-      position: string;
     }) => {
       try {
-        const updatedUser = await adminService.editUser(userId, userData);
-        setUsers(users.map(u => u.id === userId ? updatedUser : u));
+        // Modal'dan gelen name + surname'i fullName'e çevir
+        const fullName = `${userData.name} ${userData.surname}`.trim();
+        
+        const updatedUser = await adminService.editUser(String(userId), {
+          fullName,
+          email: '', // Backend'de email değişmiyor
+          department: userData.department,
+          position: 'N/A',
+        });
+        setUsers(users.map(u => u.id === String(userId) ? updatedUser : u));
         setIsEditUserModalOpen(false);
-        showToast(`User "${userData.fullName}" updated successfully`, 'success');
+        setSelectedUser(null);
+        showToast(`User "${fullName}" updated successfully`, 'success');
     } catch (error: any) {
         console.error('Failed to edit user:', error);
         let errorMessage = 'Failed to update user';
