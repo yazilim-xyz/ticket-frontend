@@ -38,15 +38,15 @@ const CATEGORY_OPTIONS: { value: Category; label: string; icon: string }[] = [
 const CreateTicketPage: React.FC = () => {
   const navigate = useNavigate();
   const { isDarkMode, toggleTheme } = useTheme();
-  
+
   // Auth & Role
-  const userRole = localStorage.getItem('userRole') || '';
+  const userRole = sessionStorage.getItem('userRole') || '';
   const isAdmin = userRole.toUpperCase() === 'ADMIN';
 
   // Form State
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<Category | "">("");
-  const [assignee, setAssignee] = useState<string>(""); 
+  const [assignee, setAssignee] = useState<string>("");
   const [priority, setPriority] = useState<Priority | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
@@ -66,7 +66,13 @@ const CreateTicketPage: React.FC = () => {
       try {
         setIsLoadingUsers(true);
         const data = await ticketService.getUsers();
-        setUsers(data);
+
+        // İsimlere göre (name) alfabetik sıralama yapıyoruz
+        const sortedUsers = [...data].sort((a: any, b: any) =>
+          (a.name || "").localeCompare(b.name || "", 'tr', { sensitivity: 'base' })
+        );
+
+        setUsers(sortedUsers);
       } catch (err) {
         console.error("User fetch error:", err);
       } finally {
@@ -75,45 +81,77 @@ const CreateTicketPage: React.FC = () => {
     };
     fetchUsers();
   }, []);
-
   // Yardımcı Fonksiyonlar
   const getMinDate = () => new Date().toISOString().split('T')[0];
-  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
-  const selectedPriority = PRIORITY_OPTIONS.find((o) => o.value === priority);
+  const getInitials = (name: string | null | undefined) => {
+    if (!name || typeof name !== 'string') return '??'; // Eğer isim yoksa ?? döner, uygulama çökmez
+
+    return name
+      .trim()
+      .split(/\s+/) // Birden fazla boşluk olsa bile düzgün parçalar
+      .filter(n => n.length > 0) // Boş parçaları eler
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  }; const selectedPriority = PRIORITY_OPTIONS.find((o) => o.value === priority);
   const selectedUser = users.find((u) => String(u.id) === assignee);
   const canSubmit = title.trim() && description.trim() && priority && !isSubmitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    if (!priority) return;
+
+    if (!title.trim() || !description.trim()) {
+      setErrorMsg("Title and Description are required.");
+      return;
+    }
+    if (!priority) {
+      setErrorMsg("Please select a priority.");
+      return;
+    }
 
     try {
       setIsSubmitting(true);
-      await ticketService.createTicket({
+
+      const payload = {
         title: title.trim(),
         description: description.trim(),
-        priority,
+        priority: priority,
         category: category || undefined,
-        assignedToUserId: assignee ? Number(assignee) : undefined,
-        dueDate: dueDate || undefined,
-      } as any);
+        assignedToId: assignee ? Number(assignee) : undefined,
+        dueDate: dueDate ? `${dueDate}T23:59:59Z` : undefined,
+      };
+
+      await ticketService.createTicket(payload);
+
+      // Formu pırıl pırıl yapıyoruz:
+      setTitle("");
+      setDescription("");
+      setCategory("");
+      setAssignee("");   // Burası önemli!
+      setPriority(null);
+      setDueDate("");
+
+      // UI tarafındaki dropdown'ları da kapatalım ki açık kalmasınlar
+      setIsPriorityOpen(false);
+      setIsAssigneeOpen(false);
 
       setShowSuccessPopup(true);
+
     } catch (err: any) {
+      console.error("Create Ticket Error:", err);
       setErrorMsg(err.message || "Failed to create ticket.");
     } finally {
       setIsSubmitting(false);
     }
   };
-
   return (
     <div className={`flex h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"} transition-colors duration-300 overflow-hidden`}>
       <Sidebar isDarkMode={isDarkMode} />
 
       {/* ANA İÇERİK ALANI */}
-      <div className="flex-1 overflow-y-auto">
-        
+      <div className="flex-1 flex flex-col min-h-0">
+
         {/* HEADER - SABİT ÜST ŞERİT */}
         <div className={`px-8 py-6 border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} relative`}>
           <div className="flex items-center justify-between">
@@ -188,8 +226,8 @@ const CreateTicketPage: React.FC = () => {
 
         {/* SCROLLABLE AREA - SAYFAYA YAYILAN İÇERİK */}
         <div className="flex-1 min-h-0 overflow-y-auto px-10 py-8 scrollbar-thin scrollbar-thumb-gray-400">
-          <div className="mx-auto w-full max-w-9xl"> 
-            
+          <div className="mx-auto w-full max-w-9xl">
+
             <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} rounded-2xl shadow-xl overflow-hidden border ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
               <form onSubmit={handleSubmit} className="p-10 space-y-10">
 
@@ -254,19 +292,57 @@ const CreateTicketPage: React.FC = () => {
                     <label className={`flex items-center gap-2 text-sm font-semibold mb-3 ${isDarkMode ? "text-gray-300" : "text-gray-700"}`}><UserIcon className="w-4 h-4 text-cyan-600" /> Assign To</label>
                     <button type="button" onClick={() => setIsAssigneeOpen(!isAssigneeOpen)} className={`w-full px-5 py-4 rounded-xl border-2 flex items-center justify-between ${isDarkMode ? "bg-gray-700/50 border-gray-600 text-white" : "bg-gray-50 border-gray-200"} hover:border-teal-500 transition-colors`}>
                       <span className="flex items-center gap-3">
-                        {selectedUser ? <><div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs font-bold">{getInitials(selectedUser.fullName)}</div>{selectedUser.fullName}</> : <span className="opacity-50">Select user</span>}
+                        {selectedUser ? (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs font-bold">
+                              {getInitials(`${(selectedUser as any).name || ''} ${(selectedUser as any).surname || ''}`.trim())}
+                            </div>
+                            {`${(selectedUser as any).name || ''} ${(selectedUser as any).surname || ''}`.trim() || (selectedUser as any).email?.split('@')[0]}
+                          </>
+                        ) : (
+                          <span className="opacity-50">Select user</span>
+                        )}
                       </span>
                       {isLoadingUsers ? <Loader2 className="w-4 h-4 animate-spin text-teal-500" /> : <ChevronDown className={`w-5 h-5 transition-transform ${isAssigneeOpen ? 'rotate-180' : ''}`} />}
                     </button>
                     {isAssigneeOpen && (
                       <div className={`absolute top-full left-0 right-0 mt-2 z-50 max-h-64 overflow-y-auto rounded-xl shadow-2xl border ${isDarkMode ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"}`}>
                         {users.map(user => (
-                          <button key={user.id} type="button" onClick={() => { setAssignee(String(user.id)); setIsAssigneeOpen(false); }} className={`w-full px-5 py-4 flex items-center gap-4 hover:bg-teal-500/10 border-b last:border-0 border-gray-100 dark:border-gray-600 transition-colors`}>
-                            <div className="w-9 h-9 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs">{getInitials(user.fullName)}</div>
-                            <div className="text-left">
-                              <p className={`text-sm font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>{user.fullName}</p>
-                              <p className="text-[11px] opacity-50 uppercase tracking-wider">{user.role || 'Member'}</p>
-                            </div>
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => { setAssignee(String(user.id)); setIsAssigneeOpen(false); }}
+                            className={`w-full px-5 py-4 flex items-center gap-4 hover:bg-teal-500/10 border-b last:border-0 border-gray-100 dark:border-gray-600 transition-colors`}
+                          >
+                            {/* user'ı 'any' yaparak tüm TypeScript hatalarını susturuyoruz */}
+                            {(() => {
+                              const u = user as any;
+                              // 1. Backend'den gelebilecek tüm anahtar isimlerini kontrol ediyoruz
+                              const firstName = u.firstName || u.FirstName || u.name || u.Name || "";
+                              const lastName = u.lastName || u.LastName || u.surname || u.Surname || "";
+
+                              // 2. Eğer isimler boşsa, email'in @ işaretinden önceki kısmını alalım (Daha profesyonel durur)
+                              const emailFallback = u.email ? u.email.split('@')[0] : "";
+
+                              // 3. Nihai ismi oluşturuyoruz
+                              const fullName = `${firstName} ${lastName}`.trim() || emailFallback || 'Unknown User';
+
+                              return (
+                                <>
+                                  <div className="w-9 h-9 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs">
+                                    {/* Daha önce düzelttiğimiz güvenli getInitials fonksiyonu burada çalışıyor */}
+                                    {getInitials(fullName)}
+                                  </div>
+
+                                  <div className="text-left">
+                                    <p className={`text-sm font-semibold ${isDarkMode ? "text-gray-100" : "text-gray-900"}`}>
+                                      {fullName}
+                                    </p>
+                                    <p className="text-[11px] opacity-50 uppercase tracking-wider">{u.role || 'Member'}</p>
+                                  </div>
+                                </>
+                              );
+                            })()}
                             {assignee === String(user.id) && <Check className="ml-auto w-4 h-4 text-teal-500" />}
                           </button>
                         ))}
@@ -290,7 +366,7 @@ const CreateTicketPage: React.FC = () => {
 
                 {/* Footer Buttons */}
                 <div className="flex items-center justify-between pt-8 border-t border-gray-100 dark:border-gray-700">
-                  <button type="button" onClick={() => {setTitle(""); setDescription(""); setPriority(null); setCategory("");}} className="text-gray-500 hover:text-red-500 font-medium transition-colors text-sm">Reset Form</button>
+                  <button type="button" onClick={() => { setTitle(""); setDescription(""); setPriority(null); setCategory(""); }} className="text-gray-500 hover:text-red-500 font-medium transition-colors text-sm">Reset Form</button>
                   <div className="flex gap-4">
                     <button type="button" onClick={() => navigate(-1)} className={`px-8 py-3 rounded-xl font-medium ${isDarkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"} transition-all`}>Cancel</button>
                     <button type="submit" disabled={!canSubmit} className={`px-10 py-3 rounded-xl font-bold flex items-center gap-3 shadow-lg transition-all ${canSubmit ? "bg-teal-600 text-white hover:bg-teal-700 shadow-teal-500/20 active:scale-95" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}>
@@ -302,7 +378,7 @@ const CreateTicketPage: React.FC = () => {
 
               </form>
             </div>
-            
+
             {/* Feedback Messages */}
             {errorMsg && (
               <div className="mt-6 p-4 bg-red-500/10 text-red-500 rounded-xl text-center border border-red-500/20 font-medium">

@@ -232,6 +232,8 @@ class TicketService {
     description: string;
     priority: "HIGH" | "MEDIUM" | "LOW" | "CRITICAL";
     category?: "BUG" | "FEATURE" | "SUPPORT" | "OTHER";
+    assignedToId?: number;
+    dueDate?: string;
   }): Promise<Ticket> {
     const currentUser = getCurrentUser();
     
@@ -239,10 +241,28 @@ class TicketService {
       ? `${API_BASE_URL}/api/admin/tickets`
       : `${API_BASE_URL}/api/tickets`;
     
-    // User için createdById ekle
-    const body = isAdmin() 
-      ? payload 
-      : { ...payload, createdById: currentUser?.id };
+    let body: any;
+    
+    if (isAdmin()) {
+      // Admin endpoint: assignedToUserId bekliyor (assignedToId degil!)
+      body = {
+        title: payload.title,
+        description: payload.description,
+        priority: payload.priority,
+        category: payload.category,
+        dueDate: payload.dueDate,
+        // Frontend assignedToId gonderiyor, backend assignedToUserId bekliyor
+        assignedToUserId: payload.assignedToId,
+      };
+    } else {
+      // User endpoint
+      body = {
+        ...payload,
+        createdById: currentUser?.id,
+      };
+    }
+    
+    console.log('Creating ticket:', { endpoint, body });
     
     const res = await authenticatedFetch(endpoint, {
       method: "POST",
