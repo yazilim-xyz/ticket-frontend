@@ -5,6 +5,7 @@ import { notificationService } from '../../services/notificationService';
 import { Notification } from '../../types';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { wsService, ChatMessage } from '../../services/chatApi';
 import Toast from '../ui/Toast';
 import logo from '../../assets/logo.png';
 
@@ -284,6 +285,29 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
             } : undefined
           });
         });
+
+        // Chat mesajlarını dinle
+        stompClient.subscribe('/user/queue/messages', (message) => {
+          const data = JSON.parse(message.body);
+          const currentUserId = parseInt(sessionStorage.getItem('userId') || '0', 10);
+
+          // Sadece başkasından gelen mesajları göster ve chat sayfasında değilsek
+          if (data.senderId !== currentUserId && !location.pathname.startsWith('/chat')) {
+            setToast({
+              message: `💬 ${data.senderName}`,
+              description: data.message.substring(0, 60) + (data.message.length > 60 ? '...' : ''),
+              type: 'info',
+              actionButton: {
+                label: 'Görüntüle',
+                onClick: () => navigate(`/chat?userId=${data.senderId}`)
+              },
+              onClick: () => {
+                navigate(`/chat?userId=${data.senderId}`);
+                setToast(null);
+              }
+            });
+          }
+        });
       },
       onStompError: (frame) => {
         console.error('❌ WebSocket hatası:', frame);
@@ -295,7 +319,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
     return () => {
       stompClient.deactivate();
     };
-  }, [user]);
+  }, [user, navigate]);
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.isRead) {
