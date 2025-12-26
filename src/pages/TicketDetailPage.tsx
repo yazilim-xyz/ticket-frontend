@@ -171,12 +171,12 @@ const TicketDetailPage: React.FC = () => {
     switch (status.toLowerCase()) {
       case 'in_progress':
         return 'In Progress';
-      case 'new':
-        return 'Not Started';
+      case 'open':
+        return 'Open';
       case 'waiting':
         return 'Waiting';
       case 'resolved':
-        return 'Done';
+        return 'Resolved';
       case 'closed':
         return 'Closed';
       default:
@@ -296,11 +296,11 @@ const TicketDetailPage: React.FC = () => {
   }
 
   const statusOptions = [
-    { value: 'new', label: 'Not Started' },
+    { value: 'open', label: 'Open' },
     { value: 'in_progress', label: 'In Progress' },
     { value: 'waiting', label: 'Waiting' },
     { value: 'closed', label: 'Closed' },
-    { value: 'resolved', label: 'Done' }
+    { value: 'resolved', label: 'Resolved' }
   ];
 
   return (

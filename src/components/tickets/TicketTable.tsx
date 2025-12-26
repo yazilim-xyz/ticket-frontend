@@ -8,19 +8,19 @@ interface TicketTableProps {
   loading: boolean;
   isDarkMode: boolean;
   onDelete: (ticketId: string | number) => void;
-  onUpdateStatus: (ticketId: string | number) => void; 
+  onUpdateStatus: (ticketId: string | number) => void;
   onUpdateAssignment?: (ticketId: string | number) => void; // For admin to reassign tickets
   userRole: 'user' | 'admin';
   canDelete?: boolean;
 }
 
-const TicketTable: React.FC<TicketTableProps> = ({ 
-  tickets, 
-  loading, 
-  isDarkMode, 
-  onDelete, 
+const TicketTable: React.FC<TicketTableProps> = ({
+  tickets,
+  loading,
+  isDarkMode,
+  onDelete,
   onUpdateStatus,
-  onUpdateAssignment, 
+  onUpdateAssignment,
   userRole = 'user',
   canDelete = true, // default true
 }) => {
@@ -73,8 +73,8 @@ const TicketTable: React.FC<TicketTableProps> = ({
   // Format status display text
   const formatStatus = (status: string): string => {
     switch (status.toLowerCase()) {
-      case 'new':
-        return 'Not Started';
+      case 'open':
+        return 'Open';
       case 'in_progress':
         return 'In Progress';
       case 'blocked':
@@ -85,7 +85,7 @@ const TicketTable: React.FC<TicketTableProps> = ({
         return status;
     }
   };
-  
+
   // initials için email'den de çalışsın
   const getInitialsFromEmailOrName = (text: string) => {
     if (!text || text === '-') return '-';
@@ -168,9 +168,8 @@ const TicketTable: React.FC<TicketTableProps> = ({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => navigate(`/ticket/${ticket.id}`)}
-                      className={`text-sm font-medium hover:underline text-left ${
-                        isDarkMode ? 'text-gray-200' : 'text-gray-900'
-                      }`}
+                      className={`text-sm font-medium hover:underline text-left ${isDarkMode ? 'text-gray-200' : 'text-gray-900'
+                        }`}
                     >
                       {ticket.title}
                     </button>
