@@ -4,6 +4,7 @@ import { useChat } from "../hooks/useChat";
 import { formatDate, formatMessageTime, ChatUser } from "../services/chatApi";
 import Sidebar from "../components/layouts/Sidebar";
 import { useTheme } from "../context/ThemeContext";
+import Toast from "../components/ui/Toast";
 
 const ChatPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -21,12 +22,14 @@ const ChatPage: React.FC = () => {
     selectUser,
     sendMessage,
     clearError,
+    setOnNewMessageFromOther,
   } = useChat();
 
   const [input, setInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredUsers, setFilteredUsers] = useState<ChatUser[]>([]);
   const [initialUserSelected, setInitialUserSelected] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -38,14 +41,25 @@ const ChatPage: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Toast için callback ayarla
+  useEffect(() => {
+    setOnNewMessageFromOther((message) => {
+      const senderUser = users.find(u => u.id === message.senderId);
+      setToast({
+        message: `${senderUser?.name || 'Birileri'} size mesaj gönderdi: ${message.text.substring(0, 50)}${message.text.length > 50 ? '...' : ''}`,
+        type: 'info'
+      });
+    });
+  }, [setOnNewMessageFromOther, users]);
+
   // Handle URL parameter - auto select user from dashboard
   useEffect(() => {
     const userIdParam = searchParams.get("userId");
-    
+
     if (userIdParam && users.length > 0 && !initialUserSelected) {
       const userId = parseInt(userIdParam, 10);
       const userToSelect = users.find(u => u.id === userId);
-      
+
       if (userToSelect) {
         console.log("🎯 Auto-selecting user from URL:", userToSelect.name);
         selectUser(userToSelect);
@@ -57,7 +71,7 @@ const ChatPage: React.FC = () => {
   // Filter and sort users
   useEffect(() => {
     let result = [...users];
-    
+
     if (searchQuery.trim() !== "") {
       result = result.filter(
         (user) =>
@@ -65,7 +79,7 @@ const ChatPage: React.FC = () => {
           user.email?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     result.sort((a, b) => {
       if (a.lastMessageDate && b.lastMessageDate) {
         return new Date(b.lastMessageDate).getTime() - new Date(a.lastMessageDate).getTime();
@@ -74,7 +88,7 @@ const ChatPage: React.FC = () => {
       if (!a.lastMessageDate && b.lastMessageDate) return 1;
       return a.name.localeCompare(b.name);
     });
-    
+
     setFilteredUsers(result);
   }, [searchQuery, users]);
 
@@ -124,9 +138,8 @@ const ChatPage: React.FC = () => {
         aria-label="Toggle theme"
       >
         <span
-          className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
-            isDarkMode ? "translate-x-7" : "translate-x-0"
-          }`}
+          className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isDarkMode ? "translate-x-7" : "translate-x-0"
+            }`}
         />
       </button>
 
@@ -188,9 +201,8 @@ const ChatPage: React.FC = () => {
           </div>
           <div className="relative">
             <svg
-              className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                isDarkMode ? "text-gray-500" : "text-gray-400"
-              }`}
+              className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDarkMode ? "text-gray-500" : "text-gray-400"
+                }`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -202,11 +214,10 @@ const ChatPage: React.FC = () => {
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                isDarkMode
-                  ? "bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500"
-                  : "bg-white border-gray-200 text-gray-700 placeholder-gray-400"
-              }`}
+              className={`w-full pl-10 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${isDarkMode
+                ? "bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500"
+                : "bg-white border-gray-200 text-gray-700 placeholder-gray-400"
+                }`}
             />
           </div>
         </div>
@@ -224,20 +235,18 @@ const ChatPage: React.FC = () => {
               <div
                 key={u.id}
                 onClick={() => selectUser(u)}
-                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
-                  selectedUser?.id === u.id
-                    ? isDarkMode
-                      ? "bg-gray-700"
-                      : "bg-teal-50"
-                    : isDarkMode
+                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${selectedUser?.id === u.id
+                  ? isDarkMode
+                    ? "bg-gray-700"
+                    : "bg-teal-50"
+                  : isDarkMode
                     ? "hover:bg-gray-700"
                     : "hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 <div
-                  className={`w-10 h-10 rounded-full ${
-                    isDarkMode ? "bg-gray-600" : "bg-gray-800"
-                  } flex items-center justify-center font-semibold text-white text-sm`}
+                  className={`w-10 h-10 rounded-full ${isDarkMode ? "bg-gray-600" : "bg-gray-800"
+                    } flex items-center justify-center font-semibold text-white text-sm`}
                 >
                   {getInitials(u.name)}
                 </div>
@@ -270,15 +279,13 @@ const ChatPage: React.FC = () => {
           <>
             {/* Chat Header */}
             <div
-              className={`px-6 py-4 border-b ${
-                isDarkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
-              } flex items-center justify-between`}
+              className={`px-6 py-4 border-b ${isDarkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
+                } flex items-center justify-between`}
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-10 h-10 rounded-full ${
-                    isDarkMode ? "bg-gray-600" : "bg-gray-800"
-                  } flex items-center justify-center font-semibold text-white text-sm`}
+                  className={`w-10 h-10 rounded-full ${isDarkMode ? "bg-gray-600" : "bg-gray-800"
+                    } flex items-center justify-center font-semibold text-white text-sm`}
                 >
                   {getInitials(selectedUser.name)}
                 </div>
@@ -309,22 +316,20 @@ const ChatPage: React.FC = () => {
                   <div key={msg.id} className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"}`}>
                     <div className="max-w-md">
                       <div
-                        className={`px-5 py-2.5 rounded-3xl text-sm shadow-sm ${
-                          msg.sender === "me"
-                            ? isDarkMode
-                              ? "bg-teal-600 text-white"
-                              : "bg-teal-700 text-white"
-                            : isDarkMode
+                        className={`px-5 py-2.5 rounded-3xl text-sm shadow-sm ${msg.sender === "me"
+                          ? isDarkMode
+                            ? "bg-teal-600 text-white"
+                            : "bg-teal-700 text-white"
+                          : isDarkMode
                             ? "bg-gray-700 text-gray-200"
                             : "bg-gray-200 text-gray-800"
-                        }`}
+                          }`}
                       >
                         {msg.text}
                       </div>
                       <p
-                        className={`text-[10px] mt-1 ${msg.sender === "me" ? "text-right" : "text-left"} ${
-                          isDarkMode ? "text-gray-600" : "text-gray-400"
-                        }`}
+                        className={`text-[10px] mt-1 ${msg.sender === "me" ? "text-right" : "text-left"} ${isDarkMode ? "text-gray-600" : "text-gray-400"
+                          }`}
                       >
                         {formatMessageTime(msg.createdAt)}
                       </p>
@@ -340,11 +345,10 @@ const ChatPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <input
                   type="text"
-                  className={`flex-1 px-4 py-2.5 border rounded-full text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                    isDarkMode
-                      ? "bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500"
-                      : "bg-white border-gray-200 text-gray-700 placeholder-gray-400"
-                  }`}
+                  className={`flex-1 px-4 py-2.5 border rounded-full text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${isDarkMode
+                    ? "bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500"
+                    : "bg-white border-gray-200 text-gray-700 placeholder-gray-400"
+                    }`}
                   placeholder="Type your message here..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -355,23 +359,21 @@ const ChatPage: React.FC = () => {
                 <button
                   onClick={handleSend}
                   disabled={isSending || !input.trim() || !isConnected}
-                  className={`p-2.5 rounded-full transition ${
-                    input.trim() && isConnected
-                      ? isDarkMode
-                        ? "bg-teal-600 hover:bg-teal-700"
-                        : "bg-teal-700 hover:bg-teal-800"
-                      : isDarkMode
+                  className={`p-2.5 rounded-full transition ${input.trim() && isConnected
+                    ? isDarkMode
+                      ? "bg-teal-600 hover:bg-teal-700"
+                      : "bg-teal-700 hover:bg-teal-800"
+                    : isDarkMode
                       ? "bg-gray-700 cursor-not-allowed"
                       : "bg-gray-200 cursor-not-allowed"
-                  }`}
+                    }`}
                 >
                   {isSending ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <svg
-                      className={`w-5 h-5 ${
-                        input.trim() && isConnected ? "text-white" : isDarkMode ? "text-gray-500" : "text-gray-400"
-                      }`}
+                      className={`w-5 h-5 ${input.trim() && isConnected ? "text-white" : isDarkMode ? "text-gray-500" : "text-gray-400"
+                        }`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -387,9 +389,8 @@ const ChatPage: React.FC = () => {
           /* Empty State */
           <div className={`flex-1 flex flex-col ${isDarkMode ? "bg-gray-800" : "bg-white"}`}>
             <div
-              className={`px-6 py-4 border-b ${
-                isDarkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
-              } flex items-center justify-end`}
+              className={`px-6 py-4 border-b ${isDarkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
+                } flex items-center justify-end`}
             >
               <ThemeToggle />
             </div>
@@ -417,6 +418,18 @@ const ChatPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+            duration={5000}
+          />
+        </div>
+      )}
     </div>
   );
 };

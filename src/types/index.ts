@@ -89,7 +89,7 @@ export interface Notification {
   title: string;
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
-  read: boolean;
+  isRead: boolean;
   createdAt: string;
 }
 

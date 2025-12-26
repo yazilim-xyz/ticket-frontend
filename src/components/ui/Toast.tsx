@@ -2,12 +2,18 @@ import React, { useEffect } from 'react';
 
 interface ToastProps {
   message: string;
+  description?: string;
   type: 'success' | 'error' | 'warning' | 'info';
   onClose: () => void;
   duration?: number;
+  actionButton?: {
+    label: string;
+    onClick: () => void;
+  };
+  onClick?: () => void;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 5000 }) => {
+const Toast: React.FC<ToastProps> = ({ message, description, type, onClose, duration = 5000, actionButton, onClick }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, duration);
     return () => clearTimeout(timer);
@@ -16,13 +22,13 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 5000 }
   const getStyles = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-500 border-green-600';
+        return 'bg-emerald-500 border-emerald-600';
       case 'error':
         return 'bg-red-500 border-red-600';
       case 'warning':
-        return 'bg-yellow-500 border-yellow-600';
+        return 'bg-amber-500 border-amber-600';
       case 'info':
-        return 'bg-blue-500 border-blue-600';
+        return 'bg-cyan-600 border-cyan-700';
       default:
         return 'bg-gray-500 border-gray-600';
     }
@@ -58,14 +64,40 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 5000 }
   };
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border text-white shadow-lg animate-slide-in-right ${getStyles()}`}>
-      <div className="flex-shrink-0">
+    <div
+      className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border text-white shadow-xl max-w-sm animate-slideInRight ${onClick ? 'cursor-pointer hover:shadow-2xl' : ''} ${getStyles()}`}
+      onClick={onClick}
+    >
+      <div className="flex-shrink-0 mt-0.5">
         {getIcon()}
       </div>
-      <p className="text-sm font-medium">{message}</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold leading-tight">{message}</p>
+        {description && (
+          <p className="text-xs opacity-90 mt-1 leading-snug">{description}</p>
+        )}
+      </div>
+      {actionButton && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            actionButton.onClick();
+            onClose();
+          }}
+          className="flex-shrink-0 p-1 hover:bg-white/20 rounded transition-colors"
+          title={actionButton.label}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
       <button
-        onClick={onClose}
-        className="ml-2 flex-shrink-0 hover:opacity-75 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        className="flex-shrink-0 hover:opacity-75 transition-opacity"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

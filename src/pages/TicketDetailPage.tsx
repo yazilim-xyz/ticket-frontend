@@ -26,9 +26,17 @@ const TicketDetailPage: React.FC = () => {
       setIsSavingSolution(true);
       await ticketService.updateResolution(ticket.id, solution.trim());
 
-      // 1 saniye bekle, sonra sayfayı yenile
-      setTimeout(() => {
-        window.location.reload();
+      // 500ms bekle, sonra ticket'ı yeniden yükle
+      setTimeout(async () => {
+        try {
+          const updated = await ticketService.getTicketById(ticket.id);
+          setTicket(updated);
+          setSolution((updated as any).resolutionSummary || (updated as any).solution || '');
+        } catch (err) {
+          console.error('Failed to reload ticket:', err);
+        } finally {
+          setIsSavingSolution(false);
+        }
       }, 500);
     } catch (error) {
       console.error('Failed to save solution:', error);

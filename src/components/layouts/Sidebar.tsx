@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { notificationService } from '../../services/notificationService';
+import { Notification } from '../../types';
+import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
+import Toast from '../ui/Toast';
 import logo from '../../assets/logo.png';
 
 interface SidebarProps {
-  isDarkMode?: boolean; 
+  isDarkMode?: boolean;
 }
 
 interface MenuItem {
@@ -21,10 +26,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [toast, setToast] = useState<{
+    message: string;
+    description?: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    onClick?: () => void;
+    actionButton?: {
+      label: string;
+      onClick: () => void;
+    };
+  } | null>(null);
+
   // Role'ü normalize et (backend ADMIN/USER, frontend admin/user kullanıyor)
   const userRole = user?.role?.toLowerCase() || 'user';
-  
+
   const menuItems: MenuItem[] = [
     {
       id: 'dashboard',
@@ -200,15 +218,133 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
     setIsCollapsed(!isCollapsed);
   };
 
+  // Bildirimleri yükle ve WebSocket bağlan
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const [notifs, count] = await Promise.all([
+          notificationService.getNotifications(),
+          notificationService.getUnreadCount()
+        ]);
+        setNotifications(notifs.slice(0, 5)); // İlk 5 bildirim
+        setUnreadCount(count);
+      } catch (error) {
+        console.error('Failed to load notifications:', error);
+      }
+    };
+
+    if (!user) return;
+
+    // İlk yükleme
+    loadNotifications();
+
+    // WebSocket bağlantısı
+    const token = sessionStorage.getItem('accessToken');
+    if (!token) return;
+
+    const socket = new SockJS(process.env.REACT_APP_API_URL || 'http://localhost:8081' + '/ws');
+    const stompClient = new Client({
+      webSocketFactory: () => socket as any,
+      connectHeaders: {
+        Authorization: `Bearer ${token}`
+      },
+      onConnect: () => {
+        console.log('✅ WebSocket bağlantısı kuruldu');
+
+        // Bildirimleri dinle
+        stompClient.subscribe('/user/queue/notifications', (message) => {
+          const notification: Notification = JSON.parse(message.body);
+          console.log('🔔 Yeni bildirim:', notification);
+
+          // Listeye ekle
+          setNotifications(prev => [notification, ...prev.slice(0, 4)]);
+
+          // Okunmamış sayısını artır
+          if (!notification.isRead) {
+            setUnreadCount(prev => prev + 1);
+          }
+
+          // Toast bildirim göster
+          const ticketIdMatch = notification.message.match(/#(\d+)|ID[:\s]+(\d+)/i);
+          const ticketId = ticketIdMatch ? (ticketIdMatch[1] || ticketIdMatch[2]) : null;
+
+          setToast({
+            message: notification.title,
+            description: notification.message,
+            type: 'info',
+            actionButton: ticketId
+              ? {
+                label: 'Görüntüle',
+                onClick: () => navigate(`/ticket/${ticketId}`)
+              }
+              : undefined,
+            onClick: ticketId ? () => {
+              navigate(`/ticket/${ticketId}`);
+              setToast(null);
+            } : undefined
+          });
+        });
+      },
+      onStompError: (frame) => {
+        console.error('❌ WebSocket hatası:', frame);
+      },
+    });
+
+    stompClient.activate();
+
+    return () => {
+      stompClient.deactivate();
+    };
+  }, [user]);
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.isRead) {
+      try {
+        await notificationService.markAsRead(notification.id);
+        setNotifications(prev =>
+          prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (error) {
+        console.error('Failed to mark as read:', error);
+      }
+    }
+    setShowNotifications(false);
+  };
+
+  const formatTimeAgo = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (minutes < 1) return 'Şimdi';
+    if (minutes < 60) return `${minutes}dk önce`;
+    if (hours < 24) return `${hours}sa önce`;
+    return `${days}g önce`;
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
+
   return (
-    <div 
+    <div
       className={`
         h-screen border-r flex flex-col transition-all duration-300 relative
         ${isCollapsed ? 'w-20' : 'w-64'}
         ${isDarkMode ? 'bg-gray-800 border-gray-500' : 'bg-zinc-100 border-zinc-300'}
       `}>
       {/* Hamburger Menu - Sağ Üst Köşe */}
-      <button 
+      <button
         onClick={toggleSidebar}
         className={`
           absolute w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded transition-colors z-10
@@ -216,39 +352,133 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
         `}
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
       >
-        <svg 
-          className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-cyan-800'}`} 
-          viewBox="0 0 20 20" 
+        <svg
+          className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-cyan-800'}`}
+          viewBox="0 0 20 20"
           fill="currentColor"
         >
-          <path 
-            fillRule="evenodd" 
-            d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" 
-            clipRule="evenodd" 
+          <path
+            fillRule="evenodd"
+            d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+            clipRule="evenodd"
           />
         </svg>
       </button>
 
       {/* Logo Section */}
       <div className={`flex flex-col items-center px-4 ${isCollapsed ? 'pt-10 pb-3' : 'pt-4 pb-6'}`}>
+        {/* Bildirim İkonu - Sağ Üst */}
+        {!isCollapsed && (
+          <div className="absolute top-4 left-4">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`relative p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-200'
+                }`}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Bildirim Dropdown */}
+            {showNotifications && (
+              <div className={`absolute left-0 top-14 w-80 rounded-lg shadow-lg border z-50 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                }`}>
+                <div className={`p-3 border-b flex justify-between items-center ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className="font-semibold">Bildirimler</h3>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllAsRead}
+                      className={`text-xs px-2 py-1 rounded transition-colors ${isDarkMode
+                        ? 'text-blue-400 hover:bg-gray-700'
+                        : 'text-blue-600 hover:bg-blue-50'
+                        }`}
+                    >
+                      Tümünü okundu işaretle
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                      <p className="text-sm">Bildirim yok</p>
+                    </div>
+                  ) : (
+                    notifications.map(notif => {
+                      const ticketIdMatch = notif.message.match(/#(\d+)|ID[:\s]+(\d+)/i);
+                      const ticketId = ticketIdMatch ? (ticketIdMatch[1] || ticketIdMatch[2]) : null;
+
+                      return (
+                        <div
+                          key={notif.id}
+                          className={`p-3 border-b cursor-pointer transition-colors group ${isDarkMode ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-100 hover:bg-gray-50'
+                            } ${!notif.isRead ? (isDarkMode ? 'bg-gray-700' : 'bg-blue-50') : ''}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div
+                              className="flex-1 min-w-0"
+                              onClick={() => handleNotificationClick(notif)}
+                            >
+                              <div className="flex justify-between items-start mb-1">
+                                <h4 className="font-semibold text-sm flex items-center gap-2">
+                                  {notif.title}
+                                  {!notif.isRead && <span className="w-2 h-2 bg-blue-500 rounded-full"></span>}
+                                </h4>
+                                <span className="text-xs text-gray-500">{formatTimeAgo(notif.createdAt)}</span>
+                              </div>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">{notif.message}</p>
+                            </div>
+                            {ticketId && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/ticket/${ticketId}`);
+                                  setShowNotifications(false);
+                                }}
+                                className={`flex-shrink-0 p-1.5 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-600 text-cyan-400' : 'hover:bg-gray-200 text-cyan-600'}`}
+                                title="Ticket'i görüntüle"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {!isCollapsed && (
           <>
-            <img 
-              src={logo} 
-              alt="Enterprise Ticket System Logo" 
+            <img
+              src={logo}
+              alt="Enterprise Ticket System Logo"
               className="w-20 h-20 mb-3"
             />
-            <h2 className={`text-2xl font-[Inter] leading-7 text-center ${
-              isDarkMode ? 'text-teal-600' : 'text-cyan-800'
-            }`}>
-              Enterprise<br/>Ticket System
+            <h2 className={`text-2xl font-[Inter] leading-7 text-center ${isDarkMode ? 'text-teal-600' : 'text-cyan-800'
+              }`}>
+              Enterprise<br />Ticket System
             </h2>
           </>
         )}
         {isCollapsed && (
-          <img 
-            src={logo} 
-            alt="Logo" 
+          <img
+            src={logo}
+            alt="Logo"
             className="w-12 h-12"
           />
         )}
@@ -266,7 +496,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
               onClick={() => handleMenuClick(item.path)}
               className={`
                 w-full h-10 px-4 rounded-lg flex items-center gap-4 transition-colors
-                ${isActive(item.path) 
+                ${isActive(item.path)
                   ? isDarkMode ? 'bg-teal-700 text-white' : 'bg-cyan-800 text-white'
                   : isDarkMode ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-white text-black hover:bg-gray-50'
                 }
@@ -277,23 +507,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
               <span className={isActive(item.path) ? 'text-white' : isDarkMode ? 'text-teal-600' : 'text-cyan-800'}>
                 {item.icon}
               </span>
-              
+
               {!isCollapsed && (
                 <>
                   <span className="flex-1 text-left text-base font-[Inter] leading-6">
                     {item.label}
                   </span>
-                  <svg 
+                  <svg
                     className={`w-3 h-6 ${isActive(item.path) ? 'text-white' : isDarkMode ? 'text-white-400' : 'text-cyan-800'}`}
-                    viewBox="0 0 12 24" 
+                    viewBox="0 0 12 24"
                     fill="currentColor"
                   >
-                    <path 
-                      d="M3.09 5.64L8.45 12L3.09 18.36" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
+                    <path
+                      d="M3.09 5.64L8.45 12L3.09 18.36"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       fill="none"
                     />
                   </svg>
@@ -303,6 +533,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode = false }) => {
           ))}
         </div>
       </nav>
+
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50">
+          <Toast
+            message={toast.message}
+            description={toast.description}
+            type={toast.type}
+            onClose={() => setToast(null)}
+            duration={5000}
+            actionButton={toast.actionButton}
+            onClick={toast.onClick}
+          />
+        </div>
+      )}
     </div>
   );
 };

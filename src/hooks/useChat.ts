@@ -25,6 +25,7 @@ interface UseChatReturn {
   isLoadingUsers: boolean;
   isSending: boolean;
   error: string | null;
+  onNewMessageFromOther?: (message: ChatMessage) => void; // Toast için callback
 
   // Actions
   selectUser: (user: ChatUser) => void;
@@ -33,6 +34,7 @@ interface UseChatReturn {
   disconnect: () => void;
   refreshUsers: () => Promise<void>;
   clearError: () => void;
+  setOnNewMessageFromOther: (callback: (message: ChatMessage) => void) => void;
 }
 
 export function useChat(options: UseChatOptions = {}): UseChatReturn {
@@ -47,6 +49,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [onNewMessageFromOther, setOnNewMessageFromOther] = useState<((message: ChatMessage) => void) | undefined>();
 
   // Ref to track selected user in callbacks
   const selectedUserRef = useRef<ChatUser | null>(null);
@@ -169,6 +172,12 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     const unsubscribe = wsService.onMessage((message: ChatMessage) => {
       // Eğer mesaj şu anki sohbetten geliyorsa, listeye ekle
       const currentSelected = selectedUserRef.current;
+      const isFromMe = message.senderId === getCurrentUserId();
+
+      // Başka birinden mesaj geldiyse ve aktif sohbet o kişiyle değilse toast göster
+      if (!isFromMe && currentSelected?.id !== message.senderId && onNewMessageFromOther) {
+        onNewMessageFromOther(message);
+      }
 
       if (
         currentSelected &&
@@ -214,7 +223,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     });
 
     return unsubscribe;
-  }, []);
+  }, [onNewMessageFromOther]);
 
   return {
     messages,
@@ -231,6 +240,7 @@ export function useChat(options: UseChatOptions = {}): UseChatReturn {
     disconnect,
     refreshUsers,
     clearError,
+    setOnNewMessageFromOther: (callback: (message: ChatMessage) => void) => setOnNewMessageFromOther(() => callback),
   };
 }
 

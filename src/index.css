@@ -10,7 +10,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  background-color: var(--color-bg-primary); 
+  background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   transition: background-color 0.3s, color 0.3s;
 }
@@ -20,46 +20,62 @@ code {
     monospace;
 }
 
+/* Toast Animation */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s ease-out;
+}
+
 /*renkler düzenlenicek !!!! */
-:root{
+:root {
   /* default light olabilir veya nötr değerler olabilir */
 }
+
 html[data-theme='dark'] {
-  --color-bg-primary: #0a111a;       
-  --color-bg-secondary: #17212e;     
-  
+  --color-bg-primary: #0a111a;
+  --color-bg-secondary: #17212e;
+
   /*metin*/
-  --color-text-primary: #f0f8ff;    
-  --color-text-secondary: #b3c0cf;  
-  --color-text-link: #4da6ff;       
-  
+  --color-text-primary: #f0f8ff;
+  --color-text-secondary: #b3c0cf;
+  --color-text-link: #4da6ff;
+
   /* buton*/
-  --color-accent-green: #38c172;    
-  --color-accent-hover: #2d9d5c;    
-  
+  --color-accent-green: #38c172;
+  --color-accent-hover: #2d9d5c;
+
   /* diğer */
-  --color-border: #334455;         
+  --color-border: #334455;
   --color-box-shadow: rgba(0, 0, 0, 0.5);
 }
 
 
 html[data-theme='light'] {
   /* arka plan */
-  --color-bg-primary: #ffffff;      
-  --color-bg-secondary: #f4f6f8;    
-  
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f4f6f8;
+
   /* metin */
-  --color-text-primary: #17212e;     
-  --color-text-secondary: #5b6978; 
-  --color-text-link: #007bff;     
-  
+  --color-text-primary: #17212e;
+  --color-text-secondary: #5b6978;
+  --color-text-link: #007bff;
+
   /* buton */
-  --color-accent-green: #38c172;     
-  --color-accent-hover: #2d9d5c;      
-  
+  --color-accent-green: #38c172;
+  --color-accent-hover: #2d9d5c;
+
   /* diğer */
-  --color-border: #e0e6ed;    
+  --color-border: #e0e6ed;
   --color-box-shadow: rgba(0, 0, 0, 0.1);
 }
-
-
